@@ -39,7 +39,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.maas3n.mattrip"
+        applicationId = "io.github.maas3n.muksmatt"
         minSdk = 26
         targetSdk = 36
         versionCode = mattRipVersionCode

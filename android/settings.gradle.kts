@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MattRipAndroid"
+rootProject.name = "muKsMaTTAndroid"
 include(":app")

@@ -6,17 +6,17 @@ import subprocess
 import sys
 import time
 
-PACKAGE = 'io.github.maas3n.mattrip'
+PACKAGE = 'io.github.maas3n.muksmatt'
 
 
 def retryable_system_crash(before_pid, after_pid, diagnostics):
     # A missing tab, UIAutomator failure, app crash or app ANR alone never earns
     # a retry. Require a changed/dead system_server AND this exact platform fault.
     app_failure = re.search(
-        r'Process:\s*io\.github\.maas3n\.mattrip(?:[,:\s]|$)'
-        r'|>>>\s*io\.github\.maas3n\.mattrip(?:[:\s]|$)'
-        r'|ANR in io\.github\.maas3n\.mattrip'
-        r'|MattRip (?:isn.t|is not) responding|Unexpected ANR dialog', diagnostics)
+        r'Process:\s*io\.github\.maas3n\.muksmatt(?:[,:\s]|$)'
+        r'|>>>\s*io\.github\.maas3n\.muksmatt(?:[:\s]|$)'
+        r'|ANR in io\.github\.maas3n\.muksmatt'
+        r'|muKsMaTT (?:isn.t|is not) responding|Unexpected ANR dialog', diagnostics)
     return bool(before_pid and before_pid != after_pid and not app_failure
                 and '>>> system_server <<<' in diagnostics
                 and 'artInstanceOfFromCode' in diagnostics

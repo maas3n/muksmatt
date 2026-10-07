@@ -22,10 +22,10 @@ class RecoveryTests(unittest.TestCase):
             self.assertFalse(runner.retryable_system_crash(before, after, text))
 
     def test_app_failures_cannot_be_retried(self):
-        for failure in ['Process: io.github.maas3n.mattrip, PID: 12',
-                        '>>> io.github.maas3n.mattrip <<<',
-                        "MattRip isn't responding", 'ANR in io.github.maas3n.mattrip',
-                        'Unexpected ANR dialog instead of MattRip tab']:
+        for failure in ['Process: io.github.maas3n.muksmatt, PID: 12',
+                        '>>> io.github.maas3n.muksmatt <<<',
+                        "muKsMaTT isn't responding", 'ANR in io.github.maas3n.muksmatt',
+                        'Unexpected ANR dialog instead of muKsMaTT tab']:
             self.assertFalse(runner.retryable_system_crash('557', '890', CRASH + failure))
 
     def test_page_size_uses_getconf_when_available(self):
@@ -116,7 +116,7 @@ class RecoveryTests(unittest.TestCase):
         adb.assert_called_once_with('reboot')
 
     def test_app_failure_never_reboots(self):
-        directory, calls, execute = self.exercise([(1, "MattRip isn't responding")])
+        directory, calls, execute = self.exercise([(1, "muKsMaTT isn't responding")])
         with patch.object(runner, 'wait_ready', return_value='557'), \
              patch.object(runner, 'system_pid', return_value='890'), \
              patch.object(runner, 'adb') as adb, patch.object(runner.subprocess, 'run', side_effect=execute):
