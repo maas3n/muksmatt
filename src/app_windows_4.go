@@ -66,7 +66,7 @@ func secondsTextDuration(s string) (time.Duration, error) {
 
 // readDVDVideoTitleDuration delegates title timing entirely to FFprobe's
 // dvdvideo demuxer. dvdvideo is backed by libdvdread/libdvdnav in the pinned
-// desktop FFmpeg build; MattRip does not parse DVD title timing itself.
+// desktop FFmpeg build; muKsMaTT does not parse DVD title timing itself.
 func readDVDVideoTitleDuration(ctx context.Context, ffprobe, src string, title int) (time.Duration, error) {
 	d, err := readDVDVideoTitleDurationAttempt(ctx, ffprobe, src, title, false)
 	if err == nil {
@@ -189,7 +189,7 @@ func validateOutputDir(dir string) error {
 	if err := os.MkdirAll(abs, 0755); err != nil {
 		return fmt.Errorf("cannot create output folder: %w", err)
 	}
-	f, err := os.CreateTemp(abs, ".mattrip-write-test-")
+	f, err := os.CreateTemp(abs, ".muksmatt-write-test-")
 	if err != nil {
 		return fmt.Errorf("output folder is not writable: %w", err)
 	}

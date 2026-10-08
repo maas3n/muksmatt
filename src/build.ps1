@@ -7,7 +7,7 @@ if ($actualText -notmatch 'go([0-9]+\.[0-9]+(?:\.[0-9]+)?)') {
 }
 $actual = [Version]$Matches[1]
 if ($actual -lt $required) {
-    throw "MattRip release builds require Go 1.27.1 or newer. Found $actual."
+    throw "muKsMaTT release builds require Go 1.27.1 or newer. Found $actual."
 }
 
 $buildVersion = if ([string]::IsNullOrWhiteSpace($env:MATTRIP_VERSION)) { 'dev' } else { $env:MATTRIP_VERSION }
@@ -17,8 +17,8 @@ $env:GOOS = 'windows'
 $env:GOARCH = 'amd64'
 
 go test ./...
-go build -trimpath -buildvcs=false -ldflags "-s -w -H=windowsgui -X main.appVersion=$buildVersion" -o ..\MattRip.exe .
-go build -trimpath -buildvcs=false -tags cli -ldflags "-s -w -X main.appVersion=$buildVersion" -o ..\mattrip-cli.exe .
-Copy-Item .\MattRip.exe.manifest ..\MattRip.exe.manifest -Force
-Get-FileHash ..\MattRip.exe -Algorithm SHA256
-Get-FileHash ..\mattrip-cli.exe -Algorithm SHA256
+go build -trimpath -buildvcs=false -ldflags "-s -w -H=windowsgui -X main.appVersion=$buildVersion" -o ..\muKsMaTT.exe .
+go build -trimpath -buildvcs=false -tags cli -ldflags "-s -w -X main.appVersion=$buildVersion" -o ..\muksmatt-cli.exe .
+Copy-Item .\muKsMaTT.exe.manifest ..\muKsMaTT.exe.manifest -Force
+Get-FileHash ..\muKsMaTT.exe -Algorithm SHA256
+Get-FileHash ..\muksmatt-cli.exe -Algorithm SHA256
