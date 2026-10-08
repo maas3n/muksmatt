@@ -7,9 +7,9 @@ trap 'rm -rf "$tmp"' EXIT
 keystore="$tmp/test-signing.jks"
 store_password='test-store-password-123'
 key_password='test-key-password-456'
-alias='mattrip-test'
+alias='muksmatt-test'
 
-keytool -genkeypair   -keystore "$keystore"   -storetype JKS   -storepass "$store_password"   -alias "$alias"   -keypass "$key_password"   -keyalg RSA -keysize 2048 -sigalg SHA256withRSA   -validity 3650   -dname "CN=MattRip CI Signing Test, O=MattRip"
+keytool -genkeypair   -keystore "$keystore"   -storetype JKS   -storepass "$store_password"   -alias "$alias"   -keypass "$key_password"   -keyalg RSA -keysize 2048 -sigalg SHA256withRSA   -validity 3650   -dname "CN=muKsMaTT CI Signing Test, O=muKsMaTT"
 
 keytool -exportcert   -keystore "$keystore"   -storepass "$store_password"   -alias "$alias"   -file "$tmp/cert.der" >/dev/null
 expected="$(sha256sum "$tmp/cert.der" | awk '{print $1}')"
@@ -26,7 +26,7 @@ if MATTRIP_SIGNING_KEYSTORE="$keystore"    MATTRIP_SIGNING_STORE_PASSWORD="$stor
   exit 1
 fi
 
-printf 'MattRip signing artifact test\n' > "$tmp/payload.txt"
+printf 'muKsMaTT signing artifact test\n' > "$tmp/payload.txt"
 (
   cd "$tmp"
   jar --create --file test.aab payload.txt

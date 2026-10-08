@@ -2,10 +2,10 @@ plugins {
     id("com.android.application")
 }
 
-val mattRipVersionName = providers.gradleProperty("MATTRIP_VERSION_NAME")
+val muksmattVersionName = providers.gradleProperty("MATTRIP_VERSION_NAME")
     .orElse("0.0.0-dev")
     .get()
-val mattRipVersionCode = providers.gradleProperty("MATTRIP_VERSION_CODE")
+val muksmattVersionCode = providers.gradleProperty("MATTRIP_VERSION_CODE")
     .orElse("1")
     .get()
     .toInt()
@@ -28,10 +28,10 @@ val requireReleaseSigning = providers.gradleProperty("MATTRIP_REQUIRE_SIGNING")
     .toBooleanStrictOrNull() ?: error("MATTRIP_REQUIRE_SIGNING must be true or false")
 
 if (hasAnyReleaseSigning && !hasReleaseSigning) {
-    error("Incomplete MattRip release signing configuration")
+    error("Incomplete muKsMaTT release signing configuration")
 }
 if (requireReleaseSigning && !hasReleaseSigning) {
-    error("MattRip release signing is required but no complete signing configuration was supplied")
+    error("muKsMaTT release signing is required but no complete signing configuration was supplied")
 }
 
 android {
@@ -42,8 +42,8 @@ android {
         applicationId = "io.github.maas3n.muksmatt"
         minSdk = 26
         targetSdk = 36
-        versionCode = mattRipVersionCode
-        versionName = mattRipVersionName
+        versionCode = muksmattVersionCode
+        versionName = muksmattVersionName
 
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")

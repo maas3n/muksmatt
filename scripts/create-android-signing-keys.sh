@@ -41,10 +41,10 @@ for value in "$app_store_password" "$app_key_password" "$upload_store_password" 
   }
 done
 
-app_keystore="$out/mattrip-app-signing.jks"
-upload_keystore="$out/mattrip-upload.jks"
-app_alias="mattrip-app-signing"
-upload_alias="mattrip-upload"
+app_keystore="$out/muksmatt-app-signing.jks"
+upload_keystore="$out/muksmatt-upload.jks"
+app_alias="muksmatt-app-signing"
+upload_alias="muksmatt-upload"
 
 for file in "$app_keystore" "$upload_keystore"; do
   [[ ! -e "$file" ]] || {
@@ -53,13 +53,13 @@ for file in "$app_keystore" "$upload_keystore"; do
   }
 done
 
-keytool -genkeypair   -keystore "$app_keystore"   -storetype JKS   -storepass "$app_store_password"   -alias "$app_alias"   -keypass "$app_key_password"   -keyalg RSA -keysize 4096 -sigalg SHA256withRSA   -validity 10000   -dname "CN=MattRip App Signing, OU=MattRip, O=maas3n"
+keytool -genkeypair   -keystore "$app_keystore"   -storetype JKS   -storepass "$app_store_password"   -alias "$app_alias"   -keypass "$app_key_password"   -keyalg RSA -keysize 4096 -sigalg SHA256withRSA   -validity 10000   -dname "CN=muKsMaTT App Signing, OU=muKsMaTT, O=maas3n"
 
-keytool -genkeypair   -keystore "$upload_keystore"   -storetype JKS   -storepass "$upload_store_password"   -alias "$upload_alias"   -keypass "$upload_key_password"   -keyalg RSA -keysize 4096 -sigalg SHA256withRSA   -validity 10000   -dname "CN=MattRip Play Upload, OU=MattRip, O=maas3n"
+keytool -genkeypair   -keystore "$upload_keystore"   -storetype JKS   -storepass "$upload_store_password"   -alias "$upload_alias"   -keypass "$upload_key_password"   -keyalg RSA -keysize 4096 -sigalg SHA256withRSA   -validity 10000   -dname "CN=muKsMaTT Play Upload, OU=muKsMaTT, O=maas3n"
 
-keytool -exportcert -rfc   -keystore "$app_keystore"   -storepass "$app_store_password"   -alias "$app_alias"   -file "$out/mattrip-app-signing-cert.pem"
+keytool -exportcert -rfc   -keystore "$app_keystore"   -storepass "$app_store_password"   -alias "$app_alias"   -file "$out/muksmatt-app-signing-cert.pem"
 
-keytool -exportcert -rfc   -keystore "$upload_keystore"   -storepass "$upload_store_password"   -alias "$upload_alias"   -file "$out/mattrip-upload-cert.pem"
+keytool -exportcert -rfc   -keystore "$upload_keystore"   -storepass "$upload_store_password"   -alias "$upload_alias"   -file "$out/muksmatt-upload-cert.pem"
 
 fingerprint() {
   local keystore="$1" password="$2" alias="$3"
@@ -73,23 +73,23 @@ fingerprint() {
 app_sha="$(fingerprint "$app_keystore" "$app_store_password" "$app_alias")"
 upload_sha="$(fingerprint "$upload_keystore" "$upload_store_password" "$upload_alias")"
 
-base64 -w0 "$app_keystore" > "$out/mattrip-app-signing.jks.base64"
-base64 -w0 "$upload_keystore" > "$out/mattrip-upload.jks.base64"
+base64 -w0 "$app_keystore" > "$out/muksmatt-app-signing.jks.base64"
+base64 -w0 "$upload_keystore" > "$out/muksmatt-upload.jks.base64"
 chmod 600 "$app_keystore" "$upload_keystore" "$out/"*.base64
 
 cat <<EOF
 
-Created two distinct MattRip Android identities outside the repository.
+Created two distinct muKsMaTT Android identities outside the repository.
 
 App-signing alias: $app_alias
 App-signing SHA-256: $app_sha
-App-signing base64 file: $out/mattrip-app-signing.jks.base64
-Public certificate: $out/mattrip-app-signing-cert.pem
+App-signing base64 file: $out/muksmatt-app-signing.jks.base64
+Public certificate: $out/muksmatt-app-signing-cert.pem
 
 Play upload alias: $upload_alias
 Play upload SHA-256: $upload_sha
-Play upload base64 file: $out/mattrip-upload.jks.base64
-Public certificate: $out/mattrip-upload-cert.pem
+Play upload base64 file: $out/muksmatt-upload.jks.base64
+Public certificate: $out/muksmatt-upload-cert.pem
 
 Keep both .jks files, both passwords, and the base64 files private.
 Back up the app-signing keystore offline before publishing any Android APK.
