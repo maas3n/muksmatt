@@ -563,6 +563,11 @@ jobs:
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$MATTRIP_SIGNING_KEYSTORE"
           bash scripts/android-signing-preflight.sh "muKsMaTT app-signing key"
 
+      - name: Test native seekable Blu-ray ISO block reader on host
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O2             android/native/bluray_saf_blocks.c android/native/tests/bluray_saf_blocks_test.c             -o "$RUNNER_TEMP/bluray-saf-blocks-test"
+          "$RUNNER_TEMP/bluray-saf-blocks-test"
+
       - name: Build bundled LGPL FFmpeg runtime
         run: |
           ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" \
@@ -628,6 +633,8 @@ jobs:
           cp android/app/src/main/assets/ffmpeg/*-License.* dist/android-release/
           cp android/app/src/main/assets/ffmpeg/NDK-NOTICE.txt dist/android-release/
           cp android/app/src/main/assets/ffmpeg/LIBUDFREAD_COPYING.txt dist/android-release/
+          cp android/app/src/main/assets/ffmpeg/LIBBLURAY_COPYING.txt dist/android-release/
+          cp android/native/.work/libbluray-1.5.0.tar.xz dist/android-release/
           cp android/app/src/main/assets/ffmpeg/ffmpeg-build-info.txt dist/android-release/FFmpeg-build-info.txt
           cp android/app/src/main/assets/ffmpeg/COPYING.LGPLv2.1 dist/android-release/COPYING.LGPLv2.1.txt
           cp android/app/src/main/assets/ffmpeg/FFMPEG_LICENSE.md dist/android-release/

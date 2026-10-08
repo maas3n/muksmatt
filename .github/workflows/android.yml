@@ -76,6 +76,11 @@ jobs:
       - name: Test fail-closed Gradle release signing
         run: bash scripts/test-android-gradle-signing.sh
 
+      - name: Test native seekable Blu-ray ISO block reader on host
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror -O2             android/native/bluray_saf_blocks.c android/native/tests/bluray_saf_blocks_test.c             -o "$RUNNER_TEMP/bluray-saf-blocks-test"
+          "$RUNNER_TEMP/bluray-saf-blocks-test"
+
       - name: Build bundled LGPL FFmpeg runtime
         run: |
           ANDROID_NDK_HOME="${ANDROID_HOME}/ndk/${ANDROID_NDK_VERSION}" \
@@ -132,6 +137,8 @@ jobs:
 
           build_info="$(unzip -p "${APK}" assets/ffmpeg/ffmpeg-build-info.txt)"
           grep -q 'FFmpeg version: 9.0.1' <<<"${build_info}"
+          grep -q 'Blu-ray Android native ISO reader (arm64-v8a): libbluray 1.5.0' <<<"${build_info}"
+          grep -q 'Blu-ray Android native ISO reader (x86_64): libbluray 1.5.0' <<<"${build_info}"
           grep -q 'CSS support: libdvdcss 1.6.0' <<<"${build_info}"
 
           "${ANDROID_HOME}/build-tools/36.0.0/zipalign" \

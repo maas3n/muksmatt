@@ -277,5 +277,6 @@ build_abi x86_64 x86_64 x86_64-linux-android
 
 bash "${SCRIPT_DIR}/build-dvdnav-android.sh"
 bash "${SCRIPT_DIR}/build-mediainfo-android.sh"
+bash "${SCRIPT_DIR}/build-bluray-android.sh"
 
-echo "Bundled FFmpeg + libdvdnav/libdvdread runtime built successfully."
+echo "Bundled FFmpeg + DVD runtime + separate libbluray Android ISO probe built successfully."

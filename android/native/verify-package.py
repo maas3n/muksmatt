@@ -7,7 +7,7 @@ import sys
 import tempfile
 import zipfile
 
-EXPECTED = {'libavutil.so', 'libavcodec.so', 'libavformat.so', 'libudfread.so', 'libmattmux_jni.so', 'libmediainfo_jni.so'}
+EXPECTED = {'libavutil.so', 'libavcodec.so', 'libavformat.so', 'libudfread.so', 'libmattmux_jni.so', 'libmediainfo_jni.so', 'libbluray.so', 'libmuksmatt_bluray.so'}
 ABIS = {'arm64-v8a', 'x86_64'}
 
 for filename in sys.argv[1:]:
@@ -30,6 +30,12 @@ for filename in sys.argv[1:]:
                 raise SystemExit(f'{filename}: ELF LOAD alignment below 16 KB: {name}')
             dynamic = subprocess.check_output(['readelf', '-dW', str(elf)], text=True)
             needed = '\n'.join(line for line in dynamic.splitlines() if '(NEEDED)' in line)
+            if lib == 'libmuksmatt_bluray.so':
+                symbols = subprocess.check_output(['readelf', '-Ws', str(elf)], text=True)
+                if 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeInspectIso' not in symbols:
+                    raise SystemExit(f'{filename}: Blu-ray ISO JNI entry point missing: {name}')
+                if 'libbluray.so' not in needed:
+                    raise SystemExit(f'{filename}: Blu-ray JNI must link isolated libbluray: {name}')
             if lib == 'libmattmux_jni.so':
                 symbols = subprocess.check_output(['readelf', '-Ws', str(elf)], text=True)
                 if 'Java_io_github_maas3n_mattmux_AndroidNativeRemuxEngine_nativeScanDvdNav' not in symbols:
@@ -42,7 +48,7 @@ for filename in sys.argv[1:]:
         build_info = archive.read(build_info_path).decode('utf-8', errors='strict')
         css_enabled = 'CSS support: libdvdcss 1.6.0' in build_info
         notices = ['COPYING.LGPLv2.1', 'LIBUDFREAD_COPYING.txt', 'DVDREAD_COPYING.txt', 'DVDNAV_COPYING.txt',
-                   'ffmpeg-build-info.txt', 'MediaInfoLib-License.html', 'ZenLib-License.txt', 'NDK-NOTICE.txt']
+                   'LIBBLURAY_COPYING.txt', 'ffmpeg-build-info.txt', 'MediaInfoLib-License.html', 'ZenLib-License.txt', 'NDK-NOTICE.txt']
         if css_enabled:
             notices.append('LIBDVDCSS_COPYING.txt')
         for notice in notices:
