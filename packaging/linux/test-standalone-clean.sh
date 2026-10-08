@@ -32,7 +32,7 @@ docker run --rm --network none \
     fi
     cat /tmp/graphics.log
     grep -F "using bundled software rendering" /tmp/graphics.log
-    grep -F "MattRip GUI graphics self-test: OK" /tmp/graphics.log
+    grep -F "muKsMaTT GUI graphics self-test: OK" /tmp/graphics.log
     root=$(echo /root/.cache/mattrip/standalone/*)
     # Disable the whole private stack: Mesa versions can load Gallium
     # without going through the swrast_dri.so entry point.
@@ -52,7 +52,7 @@ if ! XDG_CACHE_HOME="$work/cache" timeout 120 "$standalone" --graphics-self-test
   exit 1
 fi
 cat "$work/host.log"
-grep -F 'MattRip GUI graphics self-test: OK' "$work/host.log"
+grep -F 'muKsMaTT GUI graphics self-test: OK' "$work/host.log"
 if grep -F 'using bundled software rendering' "$work/host.log"; then
   echo 'Working host driver was not used' >&2
   exit 1
