@@ -45,7 +45,9 @@ func parseNativeBlurayNavigation(output []byte) ([]blurayPlaylist, error) {
 		return nil, errors.New("unsupported native libbluray navigation protocol")
 	}
 	playlists := make(map[int]blurayPlaylist)
-	chapters := make(map[int][]blurayChapter)
+	type nativeChapter struct{ start, end int64 }
+	chapters := make(map[int][]nativeChapter)
+	rawDuration := make(map[int]int64)
 	for _, row := range rows[1:] {
 		fields := strings.Split(strings.TrimSpace(row), "\t")
 		if len(fields) == 0 || len(fields[0]) != 1 {
@@ -72,6 +74,7 @@ func parseNativeBlurayNavigation(output []byte) ([]blurayPlaylist, error) {
 			playlists[pid] = blurayPlaylist{
 				Number: pid, DurationTicks: ticks / 2, ClipCount: clips,
 			}
+			rawDuration[pid] = ticks
 		case "C":
 			if len(fields) != 4 {
 				return nil, errors.New("invalid native chapter record")
@@ -84,9 +87,7 @@ func parseNativeBlurayNavigation(output []byte) ([]blurayPlaylist, error) {
 			if err != nil || end <= start {
 				return nil, errors.New("invalid native chapter interval")
 			}
-			chapters[pid] = append(chapters[pid], blurayChapter{
-				StartTicks: start / 2, EndTicks: end / 2,
-			})
+			chapters[pid] = append(chapters[pid], nativeChapter{start: start, end: end})
 			if len(chapters[pid]) > 10000 {
 				return nil, errors.New("too many native Blu-ray chapters")
 			}
@@ -106,15 +107,22 @@ func parseNativeBlurayNavigation(output []byte) ([]blurayPlaylist, error) {
 	for pid, p := range playlists {
 		entries := chapters[pid]
 		sort.Slice(entries, func(i,j int)bool{
-			return entries[i].StartTicks < entries[j].StartTicks
+			return entries[i].start < entries[j].start
 		})
 		for i, ch := range entries {
-			if ch.StartTicks < 0 || ch.EndTicks > p.DurationTicks || ch.EndTicks <= ch.StartTicks ||
-				(i > 0 && ch.StartTicks < entries[i-1].EndTicks) {
+			// Validate in the original native 90 kHz timebase. Converting
+			// to 45 kHz first would hide one-tick chapter overruns.
+			if ch.start < 0 || ch.end > rawDuration[pid] || ch.end <= ch.start ||
+				(i > 0 && ch.start < entries[i-1].end) {
 				return nil, fmt.Errorf("invalid chapter timeline for playlist %05d", pid)
 			}
-			ch.Number = i + 1
-			p.Chapters = append(p.Chapters, ch)
+			converted := blurayChapter{
+				Number: i + 1, StartTicks: ch.start / 2, EndTicks: ch.end / 2,
+			}
+			if converted.EndTicks <= converted.StartTicks {
+				return nil, fmt.Errorf("chapter shorter than one 45 kHz tick on playlist %05d", pid)
+			}
+			p.Chapters = append(p.Chapters, converted)
 		}
 		result = append(result, p)
 	}
