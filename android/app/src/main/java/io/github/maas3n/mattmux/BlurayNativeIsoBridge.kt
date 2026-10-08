@@ -17,7 +17,7 @@ internal class BlurayNativeIsoBridge(private val resolver: ContentResolver) {
 
     companion object {
         private val loadError = runCatching {
-            System.loadLibrary("udfread")
+            System.loadLibrary("muksmatt_bluray_udfread")
             System.loadLibrary("bluray")
             System.loadLibrary("muksmatt_bluray")
         }.exceptionOrNull()

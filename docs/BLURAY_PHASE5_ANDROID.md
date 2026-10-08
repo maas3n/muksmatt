@@ -7,7 +7,7 @@
 - Seekable Android SAF ISO 2048-byte block reader using pread(), with strict bounds, descriptor duplication and pipe/truncated-image rejection.
 - Separate libmuksmatt_bluray.so JNI reader linked with libbluray 1.5.0; invokes bd_open_stream(), scans native playlists, and optionally reads up to 6144 video transport bytes.
 - Kotlin BlurayNativeIsoBridge takes a read-only SAF file descriptor, keeps it open during the native operation and strictly validates native scan results.
-- arm64-v8a and x86_64 builds with pinned upstream libbluray 1.5.0 source checksum f676408e91a5d321abf8b8d4dfdae36205c297dab5c54c3ec519639025f474a2, and 16 KB ELF segment alignment.
+- arm64-v8a and x86_64 builds with pinned upstream libbluray 1.5.0 source checksum f676408e91a5d321abf8b8d4dfdae36205c297dab5c54c3ec519639025f474a2, and 16 KB ELF segment alignment. The private Blu-ray runtime uses independently packaged libudfread 1.2.0 with a distinct SONAME; the existing DVD libudfread 1.1.2 is unchanged.
 - Source archive and license notices, Android APK/AAB audit, host block-reader regression tests and Kotlin native metadata parsing tests.
 
 ## Safety
