@@ -32,7 +32,11 @@ jobs:
         run: bash android/native/tests/test-title-selection.sh "$RUNNER_TEMP/dvd-sources" "$RUNNER_TEMP/title-selection"
       - name: Prove the regression catches v1.4.14
         run: |
-          git show v1.4.14:android/native/mattmux_jni.c > "$RUNNER_TEMP/released-jni.c"
+          # Use the immutable MattMux v1.4.14 commit: this fresh fork does not carry old release tags.
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://raw.githubusercontent.com/maas3n/MattMux/e8460bbb9b20e352071e0eabadc7ef8b13e7c462/android/native/mattmux_jni.c" \
+            --output "$RUNNER_TEMP/released-jni.c"
+          test -s "$RUNNER_TEMP/released-jni.c"
           if TITLE_JNI_SOURCE="$RUNNER_TEMP/released-jni.c" bash android/native/tests/test-title-selection.sh "$RUNNER_TEMP/dvd-sources" "$RUNNER_TEMP/title-baseline" > "$RUNNER_TEMP/baseline.log" 2>&1; then
             echo 'Regression unexpectedly accepted the old release' >&2
             exit 1

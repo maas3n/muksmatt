@@ -630,7 +630,7 @@ func linuxSettingsPath() string {
 		home, _ := os.UserHomeDir()
 		root = filepath.Join(home, ".config")
 	}
-	dir := filepath.Join(root, "muksmatt"
+	dir := filepath.Join(root, "muksmatt")
 	_ = os.MkdirAll(dir, 0700)
 	return filepath.Join(dir, "settings.json")
 }
