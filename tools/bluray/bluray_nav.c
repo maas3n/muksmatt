@@ -36,8 +36,8 @@ int main(int argc, char **argv) {
         return 1;
     }
     const BLURAY_DISC_INFO *info = bd_get_disc_info(disc);
-    if (info && ((info->aacs_detected && !info->aacs_handled) ||
-                 (info->bdplus_detected && !info->bdplus_handled))) {
+    if (!info || (info->aacs_detected && !info->aacs_handled) ||
+                 (info->bdplus_detected && !info->bdplus_handled)) {
         fputs("The source is protected but libaacs/libbdplus could not handle its protection. Configure authorized decryption data.\n", stderr);
         bd_close(disc);
         return 1;
@@ -50,16 +50,21 @@ int main(int argc, char **argv) {
     }
     puts("MUKSMATT_BD_NAV_1");
     unsigned emitted = 0;
+    /* libbluray may list the same MPLS more than once; retain first angle. */
+    unsigned char emitted_playlist[100000] = {0};
     for (uint32_t i = 0; i < count; ++i) {
         BLURAY_TITLE_INFO *title = bd_get_title_info(disc, i, 0);
         if (!title) continue;
         const uint32_t pid = title->playlist;
         const uint64_t duration = title->duration;
-        if (pid > 99999 || !duration || duration > UINT64_C(90000) * 60 * 60 * 48 ||
-            title->chapter_count > 10000 || title->clip_count > 10000) {
+        if (pid > 99999 || emitted_playlist[pid] || !duration ||
+            duration > UINT64_C(90000) * 60 * 60 * 48 ||
+            title->chapter_count > 10000 || title->clip_count == 0 ||
+            title->clip_count > 10000) {
             bd_free_title_info(title);
             continue;
         }
+        emitted_playlist[pid] = 1;
         printf("P\t%u\t%" PRIu64 "\t%u\n", pid, duration, title->clip_count);
         for (uint32_t ch = 0; ch < title->chapter_count; ++ch) {
             uint64_t start = title->chapters[ch].start;
