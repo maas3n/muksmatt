@@ -58,7 +58,7 @@ func resolveBlurayTools(ctx context.Context) (toolPaths, error) {
 	ffmpeg, a := exec.LookPath("ffmpeg")
 	ffprobe, b := exec.LookPath("ffprobe")
 	if a == nil && b == nil {
-		candidate := toolPaths{ffmpeg: ffmpeg, ffprobe: ffprobe, source: "system"}
+		candidate := toolPaths{ffmpeg: ffmpeg, ffprobe: ffprobe}
 		if err := checkBlurayTools(ctx, candidate); err == nil {
 			return candidate, nil
 		}
