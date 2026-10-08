@@ -1,6 +1,8 @@
-# Releasing MattRip
+> **muKsMaTT development:** The Unified release workflow is disabled while the fork is rebranded and a separate Android signing identity is established. No muKsMaTT stable or Play Store release has been published. Do not enable or dispatch production publishing without explicit authorization. The signing environment names and `MATTRIP_*` Gradle parameters are temporary inherited internal compatibility contracts; do not reuse MattRip's private keys.
 
-MattRip uses one long-lived source branch, `main`, and one product version namespace across Windows, Linux, and Android/ChromeOS.
+# Releasing muKsMaTT
+
+muKsMaTT uses one long-lived source branch, `main`, and one product version namespace across Windows, Linux, and Android/ChromeOS.
 
 ## Unified release model
 
@@ -13,19 +15,19 @@ Do not create new platform-specific version tags such as `-linux`, `-chromeos`, 
 
 A unified release contains the platform assets that are ready from the same tagged commit. Typical assets are:
 
-- `MattRip-<version>-Windows-Setup.exe`
-- `MattRip-<version>-Windows-All-in-One.exe`
-- `MattRip-<version>-Windows-Portable.zip`
-- `MattRip-<version>-Linux-amd64.deb`
-- `MattRip-<version>-Linux-amd64.tar.gz`
-- `MattRip-<version>-Linux-amd64Standalone`
-- `MattRip-<version>-Source.tar.gz`
-- `MattRip-<version>-Android.apk` — universal APK for Android phones/tablets and Chromebooks with Android app support
+- `muKsMaTT-<version>-Windows-Setup.exe`
+- `muKsMaTT-<version>-Windows-All-in-One.exe`
+- `muKsMaTT-<version>-Windows-Portable.zip`
+- `muKsMaTT-<version>-Linux-amd64.deb`
+- `muKsMaTT-<version>-Linux-amd64.tar.gz`
+- `muKsMaTT-<version>-Linux-amd64Standalone`
+- `muKsMaTT-<version>-Source.tar.gz`
+- `muKsMaTT-<version>-Android.apk` — universal APK for Android phones/tablets and Chromebooks with Android app support
 - third-party source/provenance/license files
 - per-platform checksum manifests
 - one combined `SHA256SUMS.txt`
 
-`MattRip-<version>-Android.apk` is the single persistently signed universal APK for both Android phones/tablets and Chromebooks with Android app support.
+`muKsMaTT-<version>-Android.apk` is the single persistently signed universal APK for both Android phones/tablets and Chromebooks with Android app support.
 
 GitHub also exposes source ZIP/tar archives automatically for the release tag.
 
@@ -44,7 +46,7 @@ GitHub also exposes source ZIP/tar archives automatically for the release tag.
 - Confirm Windows, Linux, and Android/ChromeOS CI is green.
 - For releases containing Android, confirm **Android signing self-test** is green and both pinned signing fingerprints match the intended identities.
 - Confirm pinned third-party versions/checksums and licensing/provenance documentation are current.
-- Choose a MattRip version/tag that is unused in this fork. Inherited MattMux tags are provenance and must not be reused for MattRip releases.
+- Choose a muKsMaTT version/tag that is unused in this fork. Existing MattRip or MattMux tags belong to upstream provenance and must not be reused for muKsMaTT releases.
 - Decide whether the release is stable or a shared preview.
 - Do not reuse a tag that already exists or already has a GitHub Release.
 
@@ -72,7 +74,7 @@ The **Unified release** workflow then:
 2. derives one product version plus the Android `versionCode`;
 3. builds the Windows payload;
 4. builds the Linux payload;
-5. builds one signed universal `MattRip-<version>-Android.apk` for both Android and ChromeOS;
+5. builds one signed universal `muKsMaTT-<version>-Android.apk` for both Android and ChromeOS;
 6. verifies each platform payload;
 7. downloads all platform artifacts into one release job;
 8. creates a combined `SHA256SUMS.txt`; and
@@ -86,15 +88,15 @@ The same workflow can be run manually for an **existing** unified tag by using `
 
 Android uses two deliberately separate signing identities. See [`android/SIGNING.md`](android/SIGNING.md) for the complete setup.
 
-- Public GitHub APKs use the **MattRip app-signing key** from the protected `android-release` environment.
-- Play AAB uploads use the separate **MattRip upload key** from the protected `android-play` environment.
+- Public GitHub APKs use the **muKsMaTT app-signing key** from the protected `android-release` environment.
+- Play AAB uploads use the separate **muKsMaTT upload key** from the protected `android-play` environment.
 - Repository Actions variables `ANDROID_APP_SIGNING_CERT_SHA256` and `ANDROID_UPLOAD_CERT_SHA256` pin the public certificates.
 - Run **Android signing self-test** successfully before tagging any release that is expected to include Android.
 - The two certificate fingerprints must be different.
 - The unified release workflow passes `MATTRIP_REQUIRE_SIGNING=true` and verifies the final APK certificate. It must never fall back to an unsigned or debug-signed production APK.
 - The Play workflow verifies the final AAB against the pinned upload certificate.
 
-MattRip 1.5.0 is the historical desktop-only first release: its Android job correctly stopped because no MattRip persistent signing secrets existed yet. Do not retrofit or replace assets under that immutable tag. Publish Android in a new version after signing is configured.
+The original MattRip 1.5.0 was published in the upstream project; muKsMaTT has no numbered release yet. Configure dedicated muKsMaTT Android signing identities before its first published APK, and never reuse an upstream tag.
 
 ## Android / ChromeOS versionCode
 
@@ -107,12 +109,12 @@ The unified workflow derives a monotonically ordered Android versionCode from th
 
 Android/ChromeOS purchases remain disabled until production device validation, signing, and purchase-verification readiness are complete. The separate Play bundle workflow is distribution tooling; it does not create GitHub Releases.
 
-MattRip uses the separate application ID `io.github.maas3n.mattrip`, so it is a different Android app from MattMux and is not an in-place upgrade path for MattMux APKs. Establish and preserve MattRip's own release-signing identity before the first public APK, and verify its certificate before publishing.
+muKsMaTT uses the separate application ID `io.github.maas3n.muksmatt`, so it is a different Android app from MattMux and is not an in-place upgrade path for MattMux APKs. Establish and preserve muKsMaTT's own release-signing identity before the first public APK, and verify its certificate before publishing.
 
 ## Historical releases
 
-The repository was forked from the verified MattMux 1.4.19 source baseline. Any inherited MattMux tags, platform-specific tags, and old release-line history are pre-fork provenance, not MattRip releases. Leave them immutable and do not reuse them for MattRip. New MattRip releases use only new, unused unified tags.
+The repository was forked from the MattRip beta-build-6-1 baseline, which originated from MattMux 1.4.19. Any inherited MattMux tags, platform-specific tags, and old release-line history are pre-fork provenance, not muKsMaTT releases. Leave them immutable and do not reuse them for muKsMaTT. New muKsMaTT releases use only new, unused unified tags.
 
 ## Emergency fixes
 
-If a published unified release is defective, leave its tag and assets unchanged, fix the problem on `main`, and publish the next unused MattRip product version. Never rebuild an old release in place.
+If a published unified release is defective, leave its tag and assets unchanged, fix the problem on `main`, and publish the next unused muKsMaTT product version. Never rebuild an old release in place.

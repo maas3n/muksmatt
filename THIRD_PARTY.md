@@ -1,6 +1,6 @@
 # Third-party software
 
-MattRip relies on FFmpeg/FFprobe and MediaInfo on desktop platforms. Their source or binary distributions are not committed to the normal repository history. Self-contained release packages download/build the pinned versions during CI, verify them, and then bundle the resulting runtime privately with MattRip.
+muKsMaTT relies on FFmpeg/FFprobe and MediaInfo on desktop platforms. Their source or binary distributions are not committed to the normal repository history. Self-contained release packages download/build the pinned versions during CI, verify them, and then bundle the resulting runtime privately with muKsMaTT.
 
 ## Inherited MattMux Windows 1.2.0 provenance
 
@@ -13,7 +13,7 @@ MattRip relies on FFmpeg/FFprobe and MediaInfo on desktop platforms. Their sourc
 - Trusted manifest SHA-256: `f64be162403094773397bfcc299a4a059507028afa7563591fd05c17d56b3214`
 - Verified archive SHA-256: `3139da8c0e3d201d16d849d2d6da2744b2b715f8d71184c4196db43da07b9607`
 
-MattRip verifies the pinned checksum manifest first, then verifies the FFmpeg archive against the expected value before using it.
+muKsMaTT verifies the pinned checksum manifest first, then verifies the FFmpeg archive against the expected value before using it.
 
 ### MediaInfo CLI
 
@@ -32,7 +32,7 @@ The Windows Setup EXE, Portable ZIP, and All-in-One EXE bundle these verified ru
 - Asset: `ffmpeg-N-126479-g08cd8df29d-linux64-gpl.tar.xz`
 - Trusted archive SHA-256: `635a2d74de852064852e95db5a9c475a86d36e2b6390e3c1ba5e46b2c46dfce0`
 
-The self-contained `.deb` and single-file standalone build keep FFmpeg and FFprobe private to MattRip. They do not install or replace `/usr/bin/ffmpeg` or `/usr/bin/ffprobe` and do not modify the global system `PATH`.
+The self-contained `.deb` and single-file standalone build keep FFmpeg and FFprobe private to muKsMaTT. They do not install or replace `/usr/bin/ffmpeg` or `/usr/bin/ffprobe` and do not modify the global system `PATH`.
 
 ### MediaInfo CLI
 
@@ -44,7 +44,7 @@ Linux MediaInfo is built from an exact pinned source set rather than from moving
 - ZenLib commit: `2ddc277fe7ecfcbfe45616bb9cd9e23079113ecd`
 - MediaArea zlib commit: `eaaf237c8cbc7310170c43202c6ec2cff64fff66`
 
-The self-contained Linux packages keep the resulting MediaInfo binary private to MattRip and do not replace `/usr/bin/mediainfo`.
+The self-contained Linux packages keep the resulting MediaInfo binary private to muKsMaTT and do not replace `/usr/bin/mediainfo`.
 
 ### libdvdcss
 
@@ -54,9 +54,9 @@ Self-contained Windows and Linux packages build and bundle a private libdvdcss r
 - Upstream source: VideoLAN libdvdcss 1.6.0 release tarball
 - Trusted source SHA-256: `7ea556c846b7bfc32d47b41cae56d1863a6b6d5f706bb162778d6f298490977c`
 - License: GPL-2.0-or-later
-- Integration: private shared library loaded by libdvdread; MattRip does not replace the existing FFmpeg `dvdvideo` title/remux/demux path
+- Integration: private shared library loaded by libdvdread; muKsMaTT does not replace the existing FFmpeg `dvdvideo` title/remux/demux path
 
-The release packages retain the exact libdvdcss source archive, COPYING file, and build metadata. Linux keeps the library in MattRip's private runtime search path; Windows keeps `libdvdcss-2.dll` beside the private FFmpeg tools. Direct GitHub/development Android builds use the same pinned libdvdcss source, statically linked into the JNI bridge, and decrypt scrambled sectors through libdvdcss stream callbacks before the existing SAF/UDF native reader passes them to libav. The Google Play AAB workflow deliberately builds with `MATTRIP_ANDROID_CSS=0` pending a separate Play distribution-policy review.
+The release packages retain the exact libdvdcss source archive, COPYING file, and build metadata. Linux keeps the library in muKsMaTT's private runtime search path; Windows keeps `libdvdcss-2.dll` beside the private FFmpeg tools. Direct GitHub/development Android builds use the same pinned libdvdcss source, statically linked into the JNI bridge, and decrypt scrambled sectors through libdvdcss stream callbacks before the existing SAF/UDF native reader passes them to libav. The Google Play AAB workflow deliberately builds with `MATTRIP_ANDROID_CSS=0` pending a separate Play distribution-policy review.
 
 ## Inherited MattMux Android / ChromeOS Alpha 4 provenance
 
@@ -75,11 +75,11 @@ Direct CSS-capable Android releases include the exact libdvdcss source/provenanc
 
 ## Licensing
 
-MattRip itself is licensed under MIT. Third-party projects keep their own licenses and copyright notices.
+muKsMaTT (derived from MattRip and originally MattMux) is licensed under MIT. Third-party projects keep their own licenses and copyright notices.
 
-The Windows and Linux FFmpeg distributions currently used by MattRip are GPL-enabled builds because the desktop DVD workflow depends on FFmpeg's `dvdvideo` support with the relevant DVD libraries. The Android FFmpeg build is handled separately under its own build configuration and licensing requirements.
+The Windows and Linux FFmpeg distributions currently used by muKsMaTT are GPL-enabled builds because the desktop DVD workflow depends on FFmpeg's `dvdvideo` support with the relevant DVD libraries. The Android FFmpeg build is handled separately under its own build configuration and licensing requirements.
 
-Anyone redistributing MattRip together with third-party binaries should review and satisfy the corresponding FFmpeg, BtbN/FFmpeg-Builds, MediaInfo, MediaInfoLib, ZenLib, zlib, libudfread, libdvdcss, and other applicable license/source-distribution obligations.
+Anyone redistributing muKsMaTT together with third-party binaries should review and satisfy the corresponding FFmpeg, BtbN/FFmpeg-Builds, MediaInfo, MediaInfoLib, ZenLib, zlib, libudfread, libdvdcss, and other applicable license/source-distribution obligations.
 
 ## Preserved desktop FFmpeg build inputs
 
@@ -96,7 +96,7 @@ These contain the existing `N-126479-g08cd8df29d` FFmpeg build; recovery does no
 substitute a newer FFmpeg revision. The Linux standalone also includes private
 GUI library notices and records their binary/source package versions under
 `licenses/library-packages.json`. Exact source packages accompany each new
-release in `MattRip-VERSION-Linux-Library-Sources.tar.gz`.
+release in `muKsMaTT-VERSION-Linux-Library-Sources.tar.gz`.
 
 ## Android MediaInfo metadata
 
