@@ -157,6 +157,11 @@ jobs:
             mingw-w64-x86_64-gcc
             mingw-w64-x86_64-meson
             mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-binutils
+            mingw-w64-x86_64-libbluray
+            mingw-w64-x86_64-libaacs
+            mingw-w64-x86_64-libbdplus
 
       - name: Build pinned Windows libdvdcss runtime
         shell: msys2 {0}
@@ -168,6 +173,18 @@ jobs:
           dll="$(find "$prefix" -type f -iname 'libdvdcss*.dll' -print -quit)"
           test -n "$dll"
           file "$dll"
+
+      - name: Build Windows native Blu-ray navigator
+        id: bluray_nav
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          nav="$(cygpath -u "$RUNNER_TEMP")/muksmatt-bluray-nav.exe"
+          cc -O2 -Wall -Wextra -Werror -o "$nav" tools/bluray/bluray_nav.c $(pkg-config --cflags --libs libbluray)
+          test "$("$nav" --version)" = "MUKSMATT_BD_NAV_1"
+          echo "nav_exe=$(cygpath -w "$nav")" >> "$GITHUB_OUTPUT"
+          echo "mingw_bin=$(cygpath -w /mingw64/bin)" >> "$GITHUB_OUTPUT"
+          echo "objdump=$(cygpath -w /mingw64/bin/objdump.exe)" >> "$GITHUB_OUTPUT"
 
       - name: Test and build Windows GUI
         shell: pwsh
@@ -190,6 +207,12 @@ jobs:
           $stage = Join-Path $PWD 'packaging\installer\bundled-tools'
           Remove-Item $work,$stage -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $work,$stage | Out-Null
+          $blurayDest = Join-Path $stage 'bluray-nav'
+          python packaging/windows/stage-bluray-windows.py --helper '${{ steps.bluray_nav.outputs.nav_exe }}' --mingw-bin '${{ steps.bluray_nav.outputs.mingw_bin }}' --objdump '${{ steps.bluray_nav.outputs.objdump }}' --dest $blurayDest
+          if ($LASTEXITCODE -ne 0) { throw 'Windows Blu-ray runtime staging failed' }
+          & (Join-Path $blurayDest 'muksmatt-bluray-nav.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw 'Staged native Blu-ray navigator failed' }
+
 
           function Assert-Sha([string]$Path,[string]$Expected) {
             $got = (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
@@ -212,6 +235,12 @@ jobs:
           $ffDest = Join-Path $stage 'ffmpeg-2026-09-08'
           New-Item -ItemType Directory -Force -Path $ffDest | Out-Null
           Copy-Item (Join-Path $ffBin '*') $ffDest -Force
+          # Static FFmpeg/libbluray loads AACS and BD+ libraries dynamically.
+          # Keep them beside private FFmpeg, never in system directories.
+          Get-ChildItem $blurayDest -Filter '*.dll' -File | ForEach-Object {
+            Copy-Item $_.FullName $ffDest -Force
+          }
+
 
           $cssRoot = Join-Path $env:RUNNER_TEMP 'muksmatt-libdvdcss'
           $cssDll = Get-ChildItem $cssRoot -Filter 'libdvdcss*.dll' -File -Recurse | Select-Object -First 1
@@ -262,6 +291,10 @@ jobs:
           Copy-Item .\THIRD_PARTY.md (Join-Path $stage 'THIRD_PARTY.md') -Force
           Copy-Item .\packaging\installer\bundled-tools\ffmpeg-2026-09-08\* $ffDest -Recurse -Force
           Copy-Item .\packaging\installer\bundled-tools\mediainfo-26.05\MediaInfo.exe $miDest -Force
+          Copy-Item .\packaging\installer\bundled-tools\bluray-nav\* $stage -Recurse -Force
+          if (-not (Test-Path (Join-Path $stage 'muksmatt-bluray-nav.exe'))) {
+            throw 'Portable Windows Blu-ray navigator is missing'
+          }
 
           foreach ($required in @(
             (Join-Path $ffDest 'libdvdcss-2.dll'),
