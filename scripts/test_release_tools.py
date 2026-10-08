@@ -29,8 +29,8 @@ class ReleaseTests(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
-        for name in ('MattRip-Windows-All-in-One.exe', 'MattRip-Linux-amd64Standalone',
-                     'MattRip-Android.apk', 'SHA256SUMS.txt', 'dependency-source.tar.gz'):
+        for name in ('muKsMaTT-Windows-All-in-One.exe', 'muKsMaTT-Linux-amd64Standalone',
+                     'muKsMaTT-Android.apk', 'SHA256SUMS.txt', 'dependency-source.tar.gz'):
             (root / name).write_bytes(name.encode())
         assets = [{'name': p.name, 'size': p.stat().st_size, 'state': 'uploaded',
                    'digest': 'sha256:' + hashlib.sha256(p.read_bytes()).hexdigest()}

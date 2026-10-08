@@ -81,7 +81,7 @@ jobs:
       - name: Prepare and verify Play upload identity
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
-          MATTRIP_SIGNING_KEYSTORE: ${{ runner.temp }}/mattrip-upload.jks
+          MATTRIP_SIGNING_KEYSTORE: ${{ runner.temp }}/muksmatt-upload.jks
           MATTRIP_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
           MATTRIP_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
           MATTRIP_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
@@ -89,7 +89,7 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$MATTRIP_SIGNING_KEYSTORE"
-          bash scripts/android-signing-preflight.sh "MattRip Play upload key"
+          bash scripts/android-signing-preflight.sh "muKsMaTT Play upload key"
 
       - name: Build bundled LGPL FFmpeg runtime
         run: |
@@ -102,7 +102,7 @@ jobs:
 
       - name: Test, lint and build signed bundle
         env:
-          ORG_GRADLE_PROJECT_MATTRIP_SIGNING_STORE_FILE: ${{ runner.temp }}/mattrip-upload.jks
+          ORG_GRADLE_PROJECT_MATTRIP_SIGNING_STORE_FILE: ${{ runner.temp }}/muksmatt-upload.jks
           ORG_GRADLE_PROJECT_MATTRIP_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
           ORG_GRADLE_PROJECT_MATTRIP_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
           ORG_GRADLE_PROJECT_MATTRIP_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
@@ -131,6 +131,6 @@ jobs:
       - name: Upload signed Play bundle
         uses: actions/upload-artifact@v4
         with:
-          name: MattRip-${{ inputs.version_name }}-Android-ChromeOS-Play-AAB
+          name: muKsMaTT-${{ inputs.version_name }}-Android-ChromeOS-Play-AAB
           if-no-files-found: error
           path: android/app/build/outputs/bundle/release/*.aab

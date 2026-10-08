@@ -58,15 +58,15 @@ def publish(root, repo, sha, run_number, attempt, run=command):
         return
     tag = f'beta-build-{run_number}-{attempt}'
     local = {p.name: p for p in root.iterdir() if p.is_file()}
-    required = {'MattRip-Windows-All-in-One.exe', 'MattRip-Linux-amd64Standalone',
-                'MattRip-Android.apk', 'SHA256SUMS.txt'}
+    required = {'muKsMaTT-Windows-All-in-One.exe', 'muKsMaTT-Linux-amd64Standalone',
+                'muKsMaTT-Android.apk', 'SHA256SUMS.txt'}
     if not required <= local.keys() or any(p.stat().st_size == 0 for p in local.values()):
         raise RuntimeError('Incomplete main release payload')
     # A distinct attempt tag avoids mutating either published releases or a
     # previous attempt's partial draft. A duplicate invocation fails closed.
     run('gh', 'release', 'create', tag, '--repo', repo, '--target', sha,
         '--draft', '--prerelease', '--latest=false',
-        '--title', f'MattRip Beta build {run_number}',
+        '--title', f'muKsMaTT Beta build {run_number}',
         '--notes', f'Beta development snapshot from main commit {sha}. '
         'This is a prerelease for testing and does not replace the latest stable release. '
         'All platforms, sources, notices and checksums are included.')

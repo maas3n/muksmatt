@@ -23,7 +23,7 @@ jobs:
       - name: Verify app-signing key
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_APP_SIGNING_KEYSTORE_BASE64 }}
-          MATTRIP_SIGNING_KEYSTORE: ${{ runner.temp }}/mattrip-app-signing.jks
+          MATTRIP_SIGNING_KEYSTORE: ${{ runner.temp }}/muksmatt-app-signing.jks
           MATTRIP_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_APP_SIGNING_STORE_PASSWORD }}
           MATTRIP_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_APP_SIGNING_KEY_ALIAS }}
           MATTRIP_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_APP_SIGNING_KEY_PASSWORD }}
@@ -31,7 +31,7 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$MATTRIP_SIGNING_KEYSTORE"
-          bash scripts/android-signing-preflight.sh "MattRip app-signing key"
+          bash scripts/android-signing-preflight.sh "muKsMaTT app-signing key"
 
   upload-signing:
     runs-on: ubuntu-latest
@@ -49,7 +49,7 @@ jobs:
       - name: Verify Play upload key
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
-          MATTRIP_SIGNING_KEYSTORE: ${{ runner.temp }}/mattrip-upload.jks
+          MATTRIP_SIGNING_KEYSTORE: ${{ runner.temp }}/muksmatt-upload.jks
           MATTRIP_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
           MATTRIP_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
           MATTRIP_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$MATTRIP_SIGNING_KEYSTORE"
-          bash scripts/android-signing-preflight.sh "MattRip Play upload key"
+          bash scripts/android-signing-preflight.sh "muKsMaTT Play upload key"
 
   distinct-identities:
     needs: [app-signing, upload-signing]
@@ -73,7 +73,7 @@ jobs:
           app="$(normalize "$APP_CERT_SHA256")"
           upload="$(normalize "$UPLOAD_CERT_SHA256")"
           test "$app" != "$upload" || {
-            echo 'MattRip app-signing and Play upload certificates must be different.' >&2
+            echo 'muKsMaTT app-signing and Play upload certificates must be different.' >&2
             exit 1
           }
-          echo "MattRip Android signing identities are configured and distinct."
+          echo "muKsMaTT Android signing identities are configured and distinct."
