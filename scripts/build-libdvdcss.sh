@@ -33,7 +33,7 @@ meson setup "$build_dir" "$source_dir" \
 meson compile -C "$build_dir"
 meson install -C "$build_dir"
 
-notice_dir="$PREFIX/share/mattrip/libdvdcss"
+notice_dir="$PREFIX/share/muksmatt/libdvdcss"
 mkdir -p "$notice_dir"
 cp "$archive" "$notice_dir/libdvdcss-${LIBDVDCSS_VERSION}-source.tar.xz"
 cp "$source_dir/COPYING" "$notice_dir/COPYING"
