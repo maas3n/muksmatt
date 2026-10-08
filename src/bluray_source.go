@@ -20,6 +20,7 @@ type bluraySourceKind uint8
 const (
 	bluraySourceDirectory bluraySourceKind = iota + 1
 	bluraySourceISOCandidate
+	bluraySourcePhysicalDrive
 )
 
 type bluraySource struct {
@@ -27,13 +28,18 @@ type bluraySource struct {
 	Input       string
 	Label       string
 	BaseName    string
-	PlaylistDir string // folder sources only; ISO requires a future libbluray reader
+	PlaylistDir string // folder sources only; native libbluray navigates ISO/drive
 }
 
 func resolveBluraySource(raw string) (bluraySource, error) {
 	raw = strings.TrimSpace(strings.Trim(raw, "\""))
 	if raw == "" {
 		return bluraySource{}, errors.New("choose a Blu-ray disc root, BDMV folder or ISO file")
+	}
+	if drive, ok, err := resolvePhysicalBlurayDrive(raw); err != nil {
+		return bluraySource{}, err
+	} else if ok {
+		return drive, nil
 	}
 	path := filepath.Clean(raw)
 	st, err := os.Stat(path)
@@ -100,8 +106,8 @@ func (p blurayPlaylist) Duration() time.Duration {
 	return time.Duration(p.DurationTicks * int64(time.Second) / 45000)
 }
 
-// Discover navigation metadata only. The encrypted ISO and optical-disc read
-// path is intentionally deferred until libbluray is integrated.
+// Directory navigation uses the bounded Go MPLS parser. ISO and optical-device
+// navigation runs through discoverBlurayForSource and the native libbluray companion.
 func discoverBlurayPlaylists(source bluraySource) ([]blurayPlaylist, error) {
 	if source.Kind != bluraySourceDirectory || source.PlaylistDir == "" {
 		return nil, errors.New("Blu-ray ISO and drive playlist scanning requires the future libbluray reader")
