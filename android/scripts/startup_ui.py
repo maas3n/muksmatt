@@ -25,7 +25,7 @@ def pixel_launcher_anr_close_button(root):
     """Only dismiss the known Pixel Launcher *system* ANR, never an app ANR.
 
     The 16 KB-page emulator can briefly show this dialog *above* the correctly
-    launched MattRip activity after its system_server crashes during cold boot.
+    launched muKsMaTT activity after its system_server crashes during cold boot.
     """
     if foreground_anr_title(root) != "Pixel Launcher isn't responding":
         return None

@@ -42,8 +42,8 @@ class StartupUITests(unittest.TestCase):
         self.assertEqual(foreground_anr_title(root), "Pixel Launcher isn't responding")
         self.assertEqual(center_of(pixel_launcher_anr_close_button(root)), (540, 961))
 
-    def test_never_dismiss_mattrip_anr(self):
-        root = dialog("MattRip isn't responding")
+    def test_never_dismiss_muksmatt_anr(self):
+        root = dialog("muKsMaTT isn't responding")
         self.assertIsNone(pixel_launcher_anr_close_button(root))
 
     def test_never_dismiss_other_system_dialog(self):

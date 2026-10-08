@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	appName = "MattRip"
+	appName = "muKsMaTT"
 
 	// Fixed, immutable FFmpeg autobuild. We verify the release checksum manifest
 	// against this hard-coded SHA-256 before trusting the archive checksum inside it.

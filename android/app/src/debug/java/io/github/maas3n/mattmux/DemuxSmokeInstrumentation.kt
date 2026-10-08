@@ -50,7 +50,7 @@ class DemuxSmokeInstrumentation : Instrumentation() {
                 check(movie.listFiles()!!.isNotEmpty())
             }
             File(safRoot, "output").mkdirs()
-            val authority = "io.github.maas3n.mattrip.demux-test"
+            val authority = "io.github.maas3n.muksmatt.demux-test"
             val source = android.provider.DocumentsContract.buildTreeDocumentUri(authority, "movie")
             val output = android.provider.DocumentsContract.buildTreeDocumentUri(authority, "output")
             for (input in listOf(source, android.provider.DocumentsContract.buildTreeDocumentUri(authority, "clock-reset"))) {
