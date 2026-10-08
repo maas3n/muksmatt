@@ -28,16 +28,16 @@ class CliPanel(private val activity: Activity) {
     @Volatile private var busy = false
     @Volatile private var destroyed = false
 
-    private val command = EditText(activity).apply { setText("mattrip-cli --help"); minLines = 2 }
+    private val command = EditText(activity).apply { setText("muksmatt-cli --help"); minLines = 2 }
     private val progress = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
-    private val console = TextView(activity).apply { text = "Android mattrip-cli ready. Pick a DVD folder or ISO, choose a command preset, then edit the command if needed." }
+    private val console = TextView(activity).apply { text = "Android muksmatt-cli ready. Pick a DVD folder or ISO, choose a command preset, then edit the command if needed." }
     private val cancel = Button(activity).apply { text = "Cancel"; isEnabled = false; setOnClickListener { runner.cancel(); append("Cancelling…") } }
     val view: View
 
     init {
         val padding = (24 * activity.resources.displayMetrics.density).toInt()
         val content = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL; setPadding(padding, padding, padding, padding) }
-        content.addView(TextView(activity).apply { text = "mattrip-cli"; textSize = 20f })
+        content.addView(TextView(activity).apply { text = "muksmatt-cli"; textSize = 20f })
         content.addView(TextView(activity).apply {
             text = "Native Android CLI surface: scan, metadata, remux and --batch. Android storage uses persisted content:// URIs instead of shell filesystem paths."
         })
@@ -54,7 +54,7 @@ class CliPanel(private val activity: Activity) {
         button("PRESET: BATCH") { preset = Preset.BATCH; refreshCommand() }
 
         content.addView(command); controls += command
-        button("RUN mattrip-cli") { runCommand() }
+        button("RUN muksmatt-cli") { runCommand() }
         content.addView(cancel)
         content.addView(progress)
         content.addView(console)
@@ -100,22 +100,22 @@ class CliPanel(private val activity: Activity) {
     private fun refreshCommand() {
         val src = source
         val text = when (preset) {
-            Preset.HELP -> "mattrip-cli --help"
-            Preset.SCAN -> src?.let { "mattrip-cli scan \"$it\"" } ?: "mattrip-cli scan SOURCE"
-            Preset.METADATA -> src?.let { "mattrip-cli metadata \"$it\"" } ?: "mattrip-cli metadata SOURCE"
+            Preset.HELP -> "muksmatt-cli --help"
+            Preset.SCAN -> src?.let { "muksmatt-cli scan \"$it\"" } ?: "muksmatt-cli scan SOURCE"
+            Preset.METADATA -> src?.let { "muksmatt-cli metadata \"$it\"" } ?: "muksmatt-cli metadata SOURCE"
             Preset.REMUX -> src?.let {
                 buildString {
-                    append("mattrip-cli remux")
+                    append("muksmatt-cli remux")
                     output?.let { out -> append(" --output \""); append(out); append('"') }
                     append(" \""); append(it); append('"')
                 }
-            } ?: "mattrip-cli remux SOURCE"
+            } ?: "muksmatt-cli remux SOURCE"
             Preset.BATCH -> src?.let {
                 buildString {
-                    append("mattrip-cli --batch \""); append(it); append('"')
+                    append("muksmatt-cli --batch \""); append(it); append('"')
                     output?.let { out -> append(" \""); append(out); append('"') }
                 }
-            } ?: "mattrip-cli --batch MOVIES_ROOT"
+            } ?: "muksmatt-cli --batch MOVIES_ROOT"
         }
         command.setText(text)
     }
@@ -139,10 +139,10 @@ class CliPanel(private val activity: Activity) {
                 busy = false
                 controls.forEach { it.isEnabled = true }
                 cancel.isEnabled = false
-                result.onSuccess { code -> append("mattrip-cli exit code: $code") }
-                    .onFailure { append("mattrip-cli error: ${it.message ?: it.javaClass.simpleName}") }
+                result.onSuccess { code -> append("muksmatt-cli exit code: $code") }
+                    .onFailure { append("muksmatt-cli error: ${it.message ?: it.javaClass.simpleName}") }
             }
-        }.apply { name = "MattRip-Android-CLI" }.start()
+        }.apply { name = "muKsMaTT-Android-CLI" }.start()
     }
 
     private fun append(line: String) {

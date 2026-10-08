@@ -74,7 +74,7 @@ try:
     if "DemuxSmokeInstrumentation" in adb("shell", "pm", "list", "instrumentation"):
         result = adb("shell", "am", "instrument", "-w", package + "/io.github.maas3n.mattmux.DemuxSmokeInstrumentation")
         (logs / "demux-smoke.txt").write_text(result)
-        if "MATTRIP_DEMUX_SMOKE_PASS" not in result:
+        if "MUKSMATT_DEMUX_SMOKE_PASS" not in result:
             raise RuntimeError("Packaged MediaInfo/demux validation failed: " + result)
         print("Bundled MediaInfo and native demux passed on Android.")
 finally:
