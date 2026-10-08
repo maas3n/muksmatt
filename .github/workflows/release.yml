@@ -267,6 +267,12 @@ jobs:
 
           & (Join-Path $ffDest 'ffmpeg.exe') -hide_banner -demuxers | Select-String dvdvideo
           if ($LASTEXITCODE -ne 0) { throw 'Bundled FFmpeg self-check failed' }
+          foreach ($name in @('ffmpeg.exe','ffprobe.exe')) {
+            $protocols = & (Join-Path $ffDest $name) -hide_banner -protocols 2>&1
+            if ($LASTEXITCODE -ne 0 -or -not ($protocols | Where-Object { $_.Trim() -eq 'bluray' })) {
+              throw "Bundled $name lacks required libbluray protocol"
+            }
+          }
 
       - name: Build Windows portable package
         shell: pwsh

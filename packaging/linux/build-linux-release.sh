@@ -122,6 +122,9 @@ BUNDLED_FFMPEG="$(find "$FF_EXTRACT" -type f -name ffmpeg -perm -u+x | head -n1)
 BUNDLED_FFPROBE="$(find "$FF_EXTRACT" -type f -name ffprobe -perm -u+x | head -n1)"
 [[ -n "$BUNDLED_FFMPEG" && -n "$BUNDLED_FFPROBE" ]] || { echo "FFmpeg archive did not contain ffmpeg/ffprobe" >&2; exit 1; }
 "$BUNDLED_FFMPEG" -hide_banner -demuxers 2>/dev/null | grep -q 'dvdvideo' || { echo "Pinned FFmpeg lacks dvdvideo demuxer" >&2; exit 1; }
+for tool in "$BUNDLED_FFMPEG" "$BUNDLED_FFPROBE"; do
+  "$tool" -hide_banner -protocols 2>/dev/null | grep -Eq "^[[:space:]]*bluray$" || { echo "Pinned FFmpeg/FFprobe lacks libbluray protocol: $tool" >&2; exit 1; }
+done
 
 # Build the current pinned libdvdcss as a private shared runtime. libdvdread
 # discovers it dynamically, so muKsMaTT keeps the existing dvdvideo pipeline.

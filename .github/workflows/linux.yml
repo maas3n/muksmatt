@@ -165,6 +165,8 @@ jobs:
           ! grep -q 'command -v ffmpeg' "$tmp/usr/bin/muksmatt-cli"
           "$tmp/usr/lib/muksmatt/ffmpeg-bin/ffmpeg" -hide_banner -demuxers 2>/dev/null | grep dvdvideo
           "$tmp/usr/lib/muksmatt/ffmpeg-bin/ffprobe" -version | head -n 1
+          "$tmp/usr/lib/muksmatt/ffmpeg-bin/ffmpeg" -protocols | grep -Eq "^[[:space:]]*bluray$"
+          "$tmp/usr/lib/muksmatt/ffmpeg-bin/ffprobe" -protocols | grep -Eq "^[[:space:]]*bluray$"
           "$tmp/usr/lib/muksmatt/mediainfo-bin/mediainfo" --Version | head -n 4
 
       - name: Real VIDEO_TS one-click batch integration
