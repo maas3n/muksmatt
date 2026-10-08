@@ -18,7 +18,7 @@ import subprocess
 WINDOWS_DLLS = {
     "advapi32.dll", "bcrypt.dll", "cabinet.dll", "comctl32.dll",
     "comdlg32.dll", "crypt32.dll", "d2d1.dll", "dwmapi.dll",
-    "gdi32.dll", "imm32.dll", "iphlpapi.dll", "kernel32.dll",
+    "gdi32.dll", "imm32.dll", "dwrite.dll", "usp10.dll", "msimg32.dll", "d3d11.dll", "d3dcompiler_47.dll", "shcore.dll", "propsys.dll", "uxtheme.dll", "iphlpapi.dll", "kernel32.dll",
     "msvcrt.dll", "ncrypt.dll", "netapi32.dll", "normaliz.dll",
     "ntdll.dll", "ole32.dll", "oleaut32.dll", "opengl32.dll",
     "psapi.dll", "rpcrt4.dll", "secur32.dll", "setupapi.dll",
