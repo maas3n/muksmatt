@@ -35,7 +35,7 @@ func cliFlagsFirst(args []string) []string {
 		}
 		if strings.HasPrefix(a, "-") {
 			flags = append(flags, a)
-			if a == "--title" || a == "-title" || a == "--output" || a == "-output" || a == "--streams" || a == "-streams" || a == "--log" || a == "-log" {
+			if a == "--playlist" || a == "-playlist" || a == "--title" || a == "-title" || a == "--output" || a == "-output" || a == "--streams" || a == "-streams" || a == "--log" || a == "-log" {
 				if i+1 < len(args) {
 					i++
 					flags = append(flags, args[i])

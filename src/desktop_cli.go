@@ -41,6 +41,8 @@ func desktopCLI() {
 		cliMetadata(ctx, os.Args[2:])
 	case "remux":
 		cliRemux(ctx, os.Args[2:])
+	case "bluray":
+		cliBluray(ctx, os.Args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n", os.Args[1])
 		printCLIUsage()
@@ -56,6 +58,8 @@ Usage:
   muksmatt-cli scan SOURCE
   muksmatt-cli metadata [--title N] SOURCE
   muksmatt-cli remux [--title N] [--output DIR] [--no-chapters] [--streams 0,1,2] SOURCE
+  muksmatt-cli bluray scan BDMV_ROOT
+  muksmatt-cli bluray remux --output MOVIE.mkv [--playlist 00800] [--streams 0,1] [--no-chapters] BDMV_ROOT
   muksmatt-cli --batch [--log FILE] MOVIES_ROOT [OUTPUT_ROOT]
   muksmatt-cli --version
 
@@ -67,6 +71,8 @@ Each movie is scanned through FFmpeg dvdvideo/libdvdread/libdvdnav, the longest 
 is selected automatically, and all streams are remuxed losslessly to MKV. When
 OUTPUT_ROOT is omitted, each MKV is written beside its ISO or VIDEO_TS folder.
 --log is optional and appends batch activity to the chosen file.
+
+Blu-ray CLI requires libbluray-enabled FFmpeg and FFprobe; protected Blu-rays need configured libaacs/libbdplus and valid key data. Blu-ray folders and mounted disc roots are supported in this stage; raw ISO and devices are not yet enabled.
 
 The CLI first uses compatible ffmpeg/ffprobe binaries already installed on PATH.
 If system FFmpeg lacks the dvdvideo demuxer, muKsMaTT prepares its pinned fallback.
