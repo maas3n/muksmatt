@@ -25,7 +25,7 @@ class BlurayMplsNavigationTest {
         write16(96, 20)
         write32(110, 100 * 45000L)
         write32(114, 120 * 45000L)
-        write32(256, 2 + 14L * if (duplicate) 3 else 2)
+        write32(256, 2L + 14L * (if (duplicate) 3 else 2))
         write16(260, if (duplicate) 3 else 2)
         b[263] = 1
         write16(264, 0)

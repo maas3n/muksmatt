@@ -31,7 +31,7 @@ FFmpeg's libbluray protocol can use **locally configured** libaacs and libbdplus
 
 ## Android and ChromeOS
 
-Android uses Kotlin/JNI and the Storage Access Framework (SAF), not the Go desktop backend. No Android libbluray reader or Blu-ray UI action is implemented in this PR. The next Android-specific milestone should define a bounded SAF read/seek adapter and native libbluray integration, followed by the same chapter and LPCM→FLAC policy and emulator/device tests. Do **not** route Blu-ray content through the existing DVD native engine or assume that the ChromeOS file provider exposes raw optical drives.
+Android uses Kotlin/JNI and the Storage Access Framework (SAF), not the Go desktop backend. A bounded Kotlin MPLS PlayList/chapters parser and JUnit tests are included for Android/ChromeOS metadata parity. No Android libbluray reader or Blu-ray UI action is implemented in this PR. The next Android-specific milestone should define a bounded SAF read/seek adapter and native libbluray integration, followed by the same chapter and LPCM→FLAC policy and emulator/device tests. Do **not** route Blu-ray content through the existing DVD native engine or assume that the ChromeOS file provider exposes raw optical drives.
 
 ## Validation
 

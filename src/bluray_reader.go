@@ -191,19 +191,11 @@ func blurayRemuxArgs(source bluraySource, playlist blurayPlaylist, streams []blu
 	if chaptersFile != "" {
 		args = append(args, "-f", "ffmetadata", "-i", chaptersFile)
 	}
-	audioIndex := 0
 	for _, stream := range streams {
 		if stream.Index < 0 {
 			return nil, errors.New("negative Blu-ray stream index")
 		}
 		args = append(args, "-map", fmt.Sprintf("0:%d", stream.Index))
-		if stream.Kind == "audio" {
-			// Output audio index is NOT the original input stream index.
-			if strings.EqualFold(stream.Codec, "pcm_bluray") {
-				args = append(args, fmt.Sprintf("-c:a:%d", audioIndex), "flac")
-			}
-			audioIndex++
-		}
 	}
 	args = append(args, "-map_metadata", "0", "-map_chapters")
 	if chaptersFile != "" {
@@ -214,7 +206,7 @@ func blurayRemuxArgs(source bluraySource, playlist blurayPlaylist, streams []blu
 	// Place -c copy before stream-specific overrides so pcm_bluray always
 	// becomes lossless FLAC, and every other selected stream is stream-copied.
 	args = append(args, "-c", "copy")
-	audioIndex = 0
+	audioIndex := 0
 	for _, stream := range streams {
 		if stream.Kind == "audio" {
 			if strings.EqualFold(stream.Codec, "pcm_bluray") {
