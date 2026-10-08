@@ -70,7 +70,7 @@ jobs:
       - name: Validate Windows Blu-ray DLL staging algorithm
         shell: pwsh
         working-directory: .
-        run: python -m unittest discover -s packaging/windows -p "test-stage-bluray-windows.py" -v
+        run: python packaging/windows/test-stage-bluray-windows.py -v
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
