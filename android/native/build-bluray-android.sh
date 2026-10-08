@@ -68,7 +68,7 @@ needs_exe_wrapper = true
 
 [built-in options]
 c_args = ['-O2', '-fPIC', '-I$prefix/include']
-c_link_args = ['-L$prefix/lib', '-Wl,-z,max-page-size=16384']
+c_link_args = ['-Wl,-z,max-page-size=16384']
 CROSS
     # Build the separate 1.2.0 UDF library with the same NDK cross file.
     local udf_prefix="$WORK/bluray-udf-$abi"
@@ -109,7 +109,7 @@ CROSS
         -I"$prefix/include" \
         "$SCRIPT_DIR/bluray_saf_blocks.c" \
         "$SCRIPT_DIR/bluray_iso_jni.c" \
-        -L"$jni" -L"$prefix/lib" -L"$udf_prefix/lib" -Wl,--no-as-needed \
+        -L"$jni" -L"$udf_prefix/lib" -Wl,--no-as-needed \
         -lbluray -ludfread -llog -ldl \
         -Wl,-z,max-page-size=16384 -Wl,--no-undefined \
         -Wl,-soname,libmuksmatt_bluray.so \
