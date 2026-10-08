@@ -30,21 +30,42 @@ build_abi() {
     local jni="$JNI_ROOT/$abi"
     mkdir -p "$build" "$jni"
     test -f "$prefix/lib/libudfread.so"
-    (
-      cd "$build"
-      CC="$cc" AR="$TOOLCHAIN/bin/llvm-ar" \
-        RANLIB="$TOOLCHAIN/bin/llvm-ranlib" \
-        STRIP="$TOOLCHAIN/bin/llvm-strip" \
-        PKG_CONFIG_PATH="$prefix/lib/pkgconfig" \
-        CPPFLAGS="-I$prefix/include" \
-        CFLAGS="-O2 -fPIC" \
-        LDFLAGS="-L$prefix/lib -Wl,-z,max-page-size=16384" \
-        "$SOURCE/configure" --host="$target" --prefix="$prefix" \
-          --disable-bdjava --without-freetype --without-libxml2 \
-          --enable-shared --disable-static
-      make -j2
-      make install
-    )
+    # VideoLAN libbluray 1.5.0 uses Meson rather than Autotools.
+    # Restrict pkg-config discovery to the already cross-built Android UDF lib.
+    local family
+    case "$abi" in
+      arm64-v8a) family="aarch64" ;;
+      x86_64) family="x86_64" ;;
+      *) echo "Unsupported Blu-ray ABI: $abi" >&2; exit 1 ;;
+    esac
+    local cross="$WORK/libbluray-$abi-cross.ini"
+    cat > "$cross" <<CROSS
+[binaries]
+c = '$cc'
+ar = '$TOOLCHAIN/bin/llvm-ar'
+strip = '$TOOLCHAIN/bin/llvm-strip'
+pkg-config = '/usr/bin/pkg-config'
+
+[host_machine]
+system = 'android'
+cpu_family = '$family'
+cpu = '$family'
+endian = 'little'
+
+[properties]
+needs_exe_wrapper = true
+
+[built-in options]
+c_args = ['-O2', '-fPIC', '-I$prefix/include']
+c_link_args = ['-L$prefix/lib', '-Wl,-z,max-page-size=16384']
+CROSS
+    PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig" \
+      meson setup "$build" "$SOURCE" --cross-file "$cross" \
+        --prefix "$prefix" --libdir lib --default-library shared \
+        -Dembed_udfread=false -Dfreetype=disabled -Dfontconfig=disabled \
+        -Dlibxml2=disabled -Dbdj_jar=disabled -Denable_tools=false
+    meson compile -C "$build" -j2
+    meson install -C "$build"
     local lib="$prefix/lib/libbluray.so"
     test -f "$lib"
     cp "$(readlink -f "$lib")" "$jni/libbluray.so"
