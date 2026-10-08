@@ -33,7 +33,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             gcc g++ cmake meson ninja-build curl xz-utils file ffmpeg mediainfo dvdauthor genisoimage \
-            libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl-mesa0 xvfb xorg-dev libwayland-dev libxkbcommon-dev libbluray-dev pkg-config
+            libgl1-mesa-dev libgl1-mesa-dri libglx-mesa0 libegl-mesa0 xvfb xorg-dev libwayland-dev libxkbcommon-dev libbluray-dev libaacs0 libbdplus0 libudfread0 pkg-config
           # Match preinstalled transitive libraries to the current deb-src index.
           # Ubuntu removes superseded security sources from that index.
           sudo apt-get upgrade -y
@@ -145,6 +145,10 @@ jobs:
           test -x "$tmp/usr/bin/muksmatt-cli"
           test -x "$tmp/usr/lib/muksmatt/app/muksmatt-bin"
           test -x "$tmp/usr/lib/muksmatt/app/muksmatt-cli-bin"
+          test -x "$tmp/usr/lib/muksmatt/app/muksmatt-bluray-nav"
+          test "$("$tmp/usr/lib/muksmatt/app/muksmatt-bluray-nav" --version)" = "MUKSMATT_BD_NAV_1"
+          dpkg-deb -f "$deb" Depends | grep -F "libaacs0"
+          dpkg-deb -f "$deb" Depends | grep -F "libbdplus0"
           test -x "$tmp/usr/lib/muksmatt/ffmpeg-bin/ffmpeg"
           test -x "$tmp/usr/lib/muksmatt/ffmpeg-bin/ffprobe"
           test -x "$tmp/usr/lib/muksmatt/mediainfo-bin/mediainfo"
@@ -243,6 +247,9 @@ jobs:
           test -x "$cache/muksmatt/standalone/"*/ffmpeg
           test -x "$cache/muksmatt/standalone/"*/ffprobe
           test -x "$cache/muksmatt/standalone/"*/mediainfo
+          test -x "$cache/muksmatt/standalone/"*/muksmatt-bluray-nav
+          test -e "$cache/muksmatt/standalone/"*/lib/libaacs.so.0
+          test -e "$cache/muksmatt/standalone/"*/lib/libbdplus.so.0
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4

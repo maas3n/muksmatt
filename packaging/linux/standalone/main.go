@@ -83,7 +83,7 @@ func main() {
 		case "--cli":
 			app = filepath.Join(root, "muksmatt-cli-bin")
 			userArgs = userArgs[1:]
-		case "scan", "metadata", "remux", "--batch", "--version", "--help", "tools", "doctor":
+		case "scan", "metadata", "remux", "bluray", "--batch", "--version", "--help", "tools", "doctor":
 			app = filepath.Join(root, "muksmatt-cli-bin")
 		}
 	}
@@ -266,7 +266,7 @@ func selfTest(root string, env []string) error {
 	}
 	if loader != "" {
 		for _, p := range payload {
-			if p.name != "muksmatt-bin" && p.name != "graphics-probe" && !strings.HasPrefix(p.name, "lib/") && !strings.HasPrefix(p.name, "software/") {
+			if p.name != "muksmatt-bin" && p.name != "muksmatt-bluray-nav" && p.name != "graphics-probe" && !strings.HasPrefix(p.name, "lib/") && !strings.HasPrefix(p.name, "software/") {
 				continue
 			}
 			cmd := exec.Command(loader, "--list", filepath.Join(root, p.name))
@@ -282,6 +282,7 @@ func selfTest(root string, env []string) error {
 	}
 	checks := [][]string{
 		{filepath.Join(root, "muksmatt-cli-bin"), "--help"},
+		{filepath.Join(root, "muksmatt-bluray-nav"), "--version"},
 		{filepath.Join(root, "ffmpeg"), "-hide_banner", "-version"},
 		{filepath.Join(root, "ffprobe"), "-hide_banner", "-version"},
 		{filepath.Join(root, "mediainfo"), "--Version"},

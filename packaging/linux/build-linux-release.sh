@@ -224,7 +224,7 @@ Section: video
 Priority: optional
 Architecture: amd64
 Maintainer: muKsMaTT project <noreply@github.com>
-Depends: libc6 (>= 2.38), libstdc++6, libgcc-s1, libbluray2, ca-certificates, libgl1, libx11-6, libxcursor1, libxrandr2, libxinerama1, libxi6, libxkbcommon0, libwayland-client0
+Depends: libc6 (>= 2.38), libstdc++6, libgcc-s1, libbluray2, libaacs0, libbdplus0, ca-certificates, libgl1, libx11-6, libxcursor1, libxrandr2, libxinerama1, libxi6, libxkbcommon0, libwayland-client0
 Homepage: https://github.com/maas3n/muksmatt
 Description: Self-contained lossless DVD title remuxer
  muKsMaTT scans DVD-Video titles and remuxes the selected title to MKV without
