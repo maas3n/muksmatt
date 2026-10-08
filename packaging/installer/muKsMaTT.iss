@@ -37,6 +37,7 @@ Source: "..\..\muksmatt-cli.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\src\muksmatt.exe.manifest"; DestDir: "{app}"; DestName: "muksmatt.exe.manifest"; Flags: ignoreversion
 Source: "..\..\src\muksmatt.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\THIRD_PARTY.md"; DestDir: "{app}"; Flags: ignoreversion
+Source: "bundled-tools\bluray-nav\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 #ifndef ThinSetup
 Source: "bundled-tools\ffmpeg-2026-09-08\*"; DestDir: "{localappdata}\muKsMaTT\tools\ffmpeg-2026-09-08"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "bundled-tools\mediainfo-26.05\MediaInfo.exe"; DestDir: "{localappdata}\muKsMaTT\tools\mediainfo-26.05"; Flags: ignoreversion
