@@ -22,8 +22,9 @@ CLI="$WORK/bin/muksmatt-cli-bin"
 FFMPEG="$(find "$WORK/tools/ffmpeg" -type f -name ffmpeg -perm -u+x | head -n1 || true)"
 FFPROBE="$(find "$WORK/tools/ffmpeg" -type f -name ffprobe -perm -u+x | head -n1 || true)"
 MEDIAINFO="$WORK/tools/mediainfo-install/bin/mediainfo"
+BLURAY_NAV="$WORK/bin/muksmatt-bluray-nav"
 
-for f in "$LAUNCHER_SRC" "$APP" "$CLI" "$FFMPEG" "$FFPROBE" "$MEDIAINFO"; do
+for f in "$LAUNCHER_SRC" "$APP" "$CLI" "$FFMPEG" "$FFPROBE" "$MEDIAINFO" "$BLURAY_NAV"; do
   [[ -f "$f" ]] || { echo "Required standalone payload is missing: $f" >&2; exit 1; }
 done
 
@@ -35,6 +36,7 @@ install -m 0755 "$CLI" "$PAYLOAD/muksmatt-cli-bin"
 install -m 0755 "$FFMPEG" "$PAYLOAD/ffmpeg"
 install -m 0755 "$FFPROBE" "$PAYLOAD/ffprobe"
 install -m 0755 "$MEDIAINFO" "$PAYLOAD/mediainfo"
+install -m 0755 "$BLURAY_NAV" "$PAYLOAD/muksmatt-bluray-nav"
 gcc -O2 -Wall -Wextra "$ROOT/packaging/linux/graphics-probe.c" -o "$PAYLOAD/graphics-probe" -lGL -lX11
 python3 "$ROOT/packaging/linux/bundle-standalone-libs.py" "$PAYLOAD"
 # libdvdread loads libdvdcss with dlopen. Keep it inside the standalone's

@@ -67,6 +67,11 @@ jobs:
           foreach ($feature in @('--batch', '--streams', '--no-chapters', 'scan', 'metadata', 'remux')) { if (-not $help.Contains($feature)) { throw "CLI help missing $feature" } }
           Get-FileHash ..\muksmatt-cli.exe -Algorithm SHA256
 
+      - name: Validate Windows Blu-ray DLL staging algorithm
+        shell: pwsh
+        working-directory: .
+        run: python packaging/windows/test-stage-bluray-windows.py -v
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
@@ -75,3 +80,49 @@ jobs:
             muksmatt.exe
             muksmatt.exe.manifest
             muksmatt-cli.exe
+
+  windows-bluray-native:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MSYS2 native Blu-ray build requirements
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-libbluray
+            mingw-w64-x86_64-libaacs
+            mingw-w64-x86_64-libbdplus
+
+      - name: Compile Windows libbluray navigator
+        id: navigation
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          output="$(cygpath -u "$RUNNER_TEMP")/muksmatt-bluray-nav.exe"
+          cc -O2 -Wall -Wextra -Werror -o "$output" tools/bluray/bluray_nav.c $(pkg-config --cflags --libs libbluray)
+          test "$("$output" --version)" = "MUKSMATT_BD_NAV_1"
+          echo "helper=$(cygpath -w "$output")" >> "$GITHUB_OUTPUT"
+          echo "mingw_bin=$(cygpath -w /mingw64/bin)" >> "$GITHUB_OUTPUT"
+          echo "objdump=$(cygpath -w /mingw64/bin/objdump.exe)" >> "$GITHUB_OUTPUT"
+
+      - name: Test staged native Blu-ray libraries without system MSYS2 PATH
+        shell: pwsh
+        env:
+          MUKSMATT_HELPER: ${{ steps.navigation.outputs.helper }}
+          MUKSMATT_MINGW: ${{ steps.navigation.outputs.mingw_bin }}
+          MUKSMATT_OBJDUMP: ${{ steps.navigation.outputs.objdump }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python packaging/windows/stage-bluray-windows.py --helper "$env:MUKSMATT_HELPER" --mingw-bin "$env:MUKSMATT_MINGW" --objdump "$env:MUKSMATT_OBJDUMP" --dest "$env:RUNNER_TEMP\muksmatt-bluray-stage"
+          if ($LASTEXITCODE -ne 0) { throw 'Native Blu-ray dependency packaging failed' }
+          $stage = Join-Path $env:RUNNER_TEMP 'muksmatt-bluray-stage'
+          & (Join-Path $stage 'muksmatt-bluray-nav.exe') --version
+          if ($LASTEXITCODE -ne 0) { throw 'Bundled native Blu-ray helper could not start' }
+          foreach ($required in @('libbluray-4.dll','libaacs-0.dll','libbdplus-0.dll','DEPENDENCIES.json')) {
+            if (-not (Test-Path (Join-Path $stage $required))) { throw "Missing: $required" }
+          }

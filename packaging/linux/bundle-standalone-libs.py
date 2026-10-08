@@ -15,6 +15,8 @@ HOST_LIBS = {
     "librt.so.1", "libresolv.so.2", "libutil.so.1", "ld-linux-x86-64.so.2",
 }
 # GLFW also opens these with dlopen, so ldd alone is insufficient.
+# Dynamic Blu-ray protection/ISO libraries are loaded with dlopen, not found by ldd.
+BLURAY_DL_LIBS = ("libaacs.so.0", "libbdplus.so.0", "libudfread.so.0")
 GUI_LIBS = (
     "libwayland-client.so.0", "libwayland-cursor.so.0", "libwayland-egl.so.1",
     "libxkbcommon.so.0", "libX11.so.6", "libXcursor.so.1", "libXrandr.so.2",
@@ -66,7 +68,7 @@ def bundle(payload):
         cache.setdefault(name, path)
     pending = [p for p in payload.iterdir() if p.is_file() and os.access(p, os.X_OK)]
     required = {}
-    for name in GUI_LIBS:
+    for name in GUI_LIBS + BLURAY_DL_LIBS:
         if name not in cache:
             raise RuntimeError(f"Build host is missing required GUI library {name}")
         required[name] = cache[name]

@@ -122,6 +122,9 @@ BUNDLED_FFMPEG="$(find "$FF_EXTRACT" -type f -name ffmpeg -perm -u+x | head -n1)
 BUNDLED_FFPROBE="$(find "$FF_EXTRACT" -type f -name ffprobe -perm -u+x | head -n1)"
 [[ -n "$BUNDLED_FFMPEG" && -n "$BUNDLED_FFPROBE" ]] || { echo "FFmpeg archive did not contain ffmpeg/ffprobe" >&2; exit 1; }
 "$BUNDLED_FFMPEG" -hide_banner -demuxers 2>/dev/null | grep -q 'dvdvideo' || { echo "Pinned FFmpeg lacks dvdvideo demuxer" >&2; exit 1; }
+for tool in "$BUNDLED_FFMPEG" "$BUNDLED_FFPROBE"; do
+  "$tool" -hide_banner -protocols 2>/dev/null | grep -Eq "^[[:space:]]*bluray$" || { echo "Pinned FFmpeg/FFprobe lacks libbluray protocol: $tool" >&2; exit 1; }
+done
 
 # Build the current pinned libdvdcss as a private shared runtime. libdvdread
 # discovers it dynamically, so muKsMaTT keeps the existing dvdvideo pipeline.
@@ -224,7 +227,7 @@ Section: video
 Priority: optional
 Architecture: amd64
 Maintainer: muKsMaTT project <noreply@github.com>
-Depends: libc6 (>= 2.38), libstdc++6, libgcc-s1, libbluray2, ca-certificates, libgl1, libx11-6, libxcursor1, libxrandr2, libxinerama1, libxi6, libxkbcommon0, libwayland-client0
+Depends: libc6 (>= 2.38), libstdc++6, libgcc-s1, libbluray2, libaacs0, libbdplus0, ca-certificates, libgl1, libx11-6, libxcursor1, libxrandr2, libxinerama1, libxi6, libxkbcommon0, libwayland-client0
 Homepage: https://github.com/maas3n/muksmatt
 Description: Self-contained lossless DVD title remuxer
  muKsMaTT scans DVD-Video titles and remuxes the selected title to MKV without
