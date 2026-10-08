@@ -17,8 +17,17 @@ import (
 // The libbluray protocol exists only in FFmpeg builds configured with libbluray.
 // Unlike a raw M2TS file, this URL follows the selected Blu-ray MPLS playlist.
 func blurayProtocolURL(source bluraySource) (string, error) {
-	if source.Kind != bluraySourceDirectory || source.PlaylistDir == "" {
-		return "", errors.New("Blu-ray ISO and raw optical device reading is not yet supported; select a mounted BDMV disc root")
+	switch source.Kind {
+	case bluraySourceDirectory:
+		if source.PlaylistDir == "" {
+			return "", errors.New("Blu-ray folder has no verified PLAYLIST")
+		}
+	case bluraySourceISOCandidate, bluraySourcePhysicalDrive:
+		if source.Input == "" {
+			return "", errors.New("Blu-ray image/device path is missing")
+		}
+	default:
+		return "", errors.New("unsupported Blu-ray source kind")
 	}
 	abs, err := filepath.Abs(source.Input)
 	if err != nil {
@@ -244,12 +253,12 @@ func verifyBlurayRemux(ctx context.Context, probe string, filename string, selec
 	return nil
 }
 
-// This first native input path works with accessible BDMV folders / mounted
-// disc roots. ISO image and raw optical device support will use a dedicated
-// libbluray input adapter, not a made-up filesystem path.
+// Read via libbluray's native Blu-ray protocol for folders, UDF ISO images
+// and accessible optical devices. Non-directory playlists must first be
+// enumerated by the native libbluray navigator.
 func remuxBlurayPlaylist(ctx context.Context, tools toolPaths, source bluraySource, playlist blurayPlaylist, output string, selected []int, chapters bool) error {
-	if source.Kind != bluraySourceDirectory {
-		return errors.New("raw ISO and optical Blu-ray inputs require the next libbluray reader stage")
+	if source.Kind != bluraySourceDirectory && source.Kind != bluraySourceISOCandidate && source.Kind != bluraySourcePhysicalDrive {
+		return errors.New("unsupported Blu-ray source kind")
 	}
 	if !strings.EqualFold(filepath.Ext(output), ".mkv") {
 		return errors.New("Blu-ray output must end in .mkv")

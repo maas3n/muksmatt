@@ -62,17 +62,27 @@ go build -trimpath -ldflags "-s -w -X main.appVersion=$APP_VERSION" -o "$WORK/bi
 go build -tags cli -trimpath -ldflags "-s -w -X main.appVersion=$APP_VERSION" -o "$WORK/bin/muksmatt-cli-bin" .
 popd >/dev/null
 
+# Native libbluray discovers playlists inside UDF ISO images and optical discs.
+# It links to the distro-maintained libbluray runtime (explicit Debian Depends).
+command -v pkg-config >/dev/null || { echo "pkg-config is required for Blu-ray navigation" >&2; exit 1; }
+pkg-config --exists libbluray || { echo "Install libbluray-dev before building muKsMaTT" >&2; exit 1; }
+cc -O2 -Wall -Wextra -Werror -o "$WORK/bin/muksmatt-bluray-nav" \
+  "$ROOT/tools/bluray/bluray_nav.c" $(pkg-config --cflags --libs libbluray)
+[[ "$("$WORK/bin/muksmatt-bluray-nav" --version)" == "MUKSMATT_BD_NAV_1" ]]
+
 # The portable tarball remains small and uses the normal muKsMaTT runtime tool
 # discovery/fallback behavior. The .deb below is the self-contained installer.
 PORTABLE="$WORK/muKsMaTT-$APP_VERSION-Linux-amd64"
 mkdir -p "$PORTABLE"
 install -m 0755 "$WORK/bin/muksmatt-bin" "$PORTABLE/muksmatt"
 install -m 0755 "$WORK/bin/muksmatt-cli-bin" "$PORTABLE/muksmatt-cli"
+install -m 0755 "$WORK/bin/muksmatt-bluray-nav" "$PORTABLE/muksmatt-bluray-nav"
 cat > "$PORTABLE/README-LINUX.txt" <<TXT
 muKsMaTT $APP_VERSION for Debian/Ubuntu Linux (amd64)
 
 muksmatt      Desktop GUI
 muksmatt-cli  Command-line interface
+muksmatt-bluray-nav  Native libbluray ISO / optical playlist reader (requires system libbluray)
 
 This portable archive checks ffmpeg, ffprobe, and mediainfo on PATH first.
 System ffmpeg/ffprobe are used only when FFmpeg exposes the dvdvideo demuxer.
@@ -173,6 +183,7 @@ mkdir -p \
 
 install -m 0755 "$WORK/bin/muksmatt-bin" "$DEBROOT/usr/lib/muksmatt/app/muksmatt-bin"
 install -m 0755 "$WORK/bin/muksmatt-cli-bin" "$DEBROOT/usr/lib/muksmatt/app/muksmatt-cli-bin"
+install -m 0755 "$WORK/bin/muksmatt-bluray-nav" "$DEBROOT/usr/lib/muksmatt/app/muksmatt-bluray-nav"
 install -m 0755 "$BUNDLED_FFMPEG" "$DEBROOT/usr/lib/muksmatt/ffmpeg-bin/ffmpeg"
 install -m 0755 "$BUNDLED_FFPROBE" "$DEBROOT/usr/lib/muksmatt/ffmpeg-bin/ffprobe"
 install -m 0755 "$BUNDLED_MEDIAINFO" "$DEBROOT/usr/lib/muksmatt/mediainfo-bin/mediainfo"
@@ -213,7 +224,7 @@ Section: video
 Priority: optional
 Architecture: amd64
 Maintainer: muKsMaTT project <noreply@github.com>
-Depends: libc6 (>= 2.38), libstdc++6, libgcc-s1, ca-certificates, libgl1, libx11-6, libxcursor1, libxrandr2, libxinerama1, libxi6, libxkbcommon0, libwayland-client0
+Depends: libc6 (>= 2.38), libstdc++6, libgcc-s1, libbluray2, ca-certificates, libgl1, libx11-6, libxcursor1, libxrandr2, libxinerama1, libxi6, libxkbcommon0, libwayland-client0
 Homepage: https://github.com/maas3n/muksmatt
 Description: Self-contained lossless DVD title remuxer
  muKsMaTT scans DVD-Video titles and remuxes the selected title to MKV without

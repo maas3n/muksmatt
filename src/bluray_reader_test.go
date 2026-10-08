@@ -53,8 +53,9 @@ func TestBlurayInputUsesSelectedPlaylistAndNotDVDFilters(t *testing.T) {
 	iso, err := resolveBluraySource(filepath.Join(t.TempDir(), "invalid.iso"))
 	if err == nil || iso.Kind != 0 { t.Fatal("nonexistent ISO should fail") }
 	s := bluraySource{Kind: bluraySourceISOCandidate, Input: "Disc.iso"}
-	if _, err := blurayInputArgs(s, blurayPlaylist{Number: 800}); err == nil {
-		t.Fatal("unimplemented ISO reader falsely accepted")
+	isoArgs, err := blurayInputArgs(s, blurayPlaylist{Number: 800})
+	if err != nil || !strings.Contains(isoArgs[3], "Disc.iso") {
+		t.Fatalf("libbluray ISO source flags: %v, err %v", isoArgs, err)
 	}
 }
 

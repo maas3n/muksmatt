@@ -11,8 +11,8 @@ import (
 )
 
 // Explicit Blu-ray subcommands protect the existing DVD scan/remux syntax.
-// This stage supports accessible disc-root folders (including mounted drives),
-// not standalone ISO files or unmounted optical devices.
+// ISO/physical-device playlist enumeration requires the companion built with
+// native libbluray; accessible BDMV folders retain their Go-only MPLS parser.
 func cliBluray(ctx context.Context, args []string) {
 	if len(args) == 0 {
 		fmt.Fprintln(os.Stderr, "Usage: muksmatt-cli bluray scan ROOT | bluray remux --output MOVIE.mkv [--playlist 00800] [--streams 0,1] [--no-chapters] ROOT")
@@ -23,12 +23,12 @@ func cliBluray(ctx context.Context, args []string) {
 		fs := flag.NewFlagSet("bluray scan", flag.ExitOnError)
 		_ = fs.Parse(cliFlagsFirst(args[1:]))
 		if fs.NArg() != 1 {
-			fmt.Fprintln(os.Stderr, "Usage: muksmatt-cli bluray scan BDMV_ROOT")
+			fmt.Fprintln(os.Stderr, "Usage: muksmatt-cli bluray scan SOURCE")
 			os.Exit(2)
 		}
 		source, err := resolveBluraySource(fs.Arg(0))
 		fatalIf(err)
-		playlists, err := discoverBlurayPlaylists(source)
+		playlists, err := discoverBlurayForSource(ctx, source)
 		fatalIf(err)
 		best, err := selectBlurayPlaylist(playlists, "")
 		fatalIf(err)
@@ -48,7 +48,7 @@ func cliBluray(ctx context.Context, args []string) {
 		noChapters := fs.Bool("no-chapters", false, "omit Blu-ray MPLS chapters")
 		_ = fs.Parse(cliFlagsFirst(args[1:]))
 		if fs.NArg() != 1 || strings.TrimSpace(*output) == "" {
-			fmt.Fprintln(os.Stderr, "Usage: muksmatt-cli bluray remux --output MOVIE.mkv [--playlist 00800] [--streams 0,1] [--no-chapters] BDMV_ROOT")
+			fmt.Fprintln(os.Stderr, "Usage: muksmatt-cli bluray remux --output MOVIE.mkv [--playlist 00800] [--streams 0,1] [--no-chapters] SOURCE")
 			os.Exit(2)
 		}
 		source, err := resolveBluraySource(fs.Arg(0))
