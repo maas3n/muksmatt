@@ -1,9 +1,9 @@
-# MattRip on Debian / Ubuntu
+# muKsMaTT on Debian / Ubuntu
 
 The Linux port provides two executables from the same source tree:
 
-- `mattrip` — desktop GUI (Fyne)
-- `mattrip-cli` — command-line interface
+- `muksmatt` — desktop GUI (Fyne)
+- `muksmatt-cli` — command-line interface
 
 ## Runtime tool policy
 
@@ -32,13 +32,13 @@ display. It verifies software fallback, failure with the private renderer stack
 removed, and preference for a working host driver. Library source
 package names and exact versions are recorded in the extracted
 `licenses/library-packages.json`. The build downloads the exact corresponding
-source packages into `MattRip-VERSION-Linux-Library-Sources.tar.gz`. Build hosts
+source packages into `muKsMaTT-VERSION-Linux-Library-Sources.tar.gz`. Build hosts
 need Debian/Ubuntu source repositories (`deb-src`) enabled; CI enables these
 before building. This is a build prerequisite, not an end-user requirement.
 
 ### Other Linux packages
 
-MattRip always checks the user's existing tools first:
+muKsMaTT always checks the user's existing tools first:
 
 1. Locate `ffmpeg` and `ffprobe` on `PATH`.
 2. Verify that FFmpeg exposes the `dvdvideo` demuxer.
@@ -46,7 +46,7 @@ MattRip always checks the user's existing tools first:
 4. If FFmpeg is missing or unsuitable, download the pinned BtbN Linux amd64 build and verify its SHA-256 before using it from the user's cache.
 5. Use system `mediainfo` when available. MediaInfo is optional and is recommended by the `.deb` package.
 
-Run `mattrip-cli tools` to inspect what MattRip sees on a machine.
+Run `muksmatt-cli tools` to inspect what muKsMaTT sees on a machine.
 
 ## Build from source on Debian / Ubuntu
 
@@ -62,8 +62,8 @@ Then build both binaries:
 ```bash
 cd src
 go mod download
-go build -o mattrip .
-go build -tags cli -o mattrip-cli .
+go build -o muksmatt .
+go build -tags cli -o muksmatt-cli .
 ```
 
 To create the `.deb`, portable binary tarball, source tarball, and checksums from the repository root:
@@ -75,7 +75,7 @@ bash packaging/linux/build-linux-release.sh 1.3.0-dev1
 Install the generated `.deb` with `apt` so recommended distro tools are installed automatically when available:
 
 ```bash
-sudo apt install ./dist/linux-release/mattrip_1.3.0~dev1_amd64.deb
+sudo apt install ./dist/linux-release/muKsMaTT-1.3.0-dev1-Linux-amd64.deb
 ```
 
-MattRip does not bypass DVD copy protection such as CSS.
+Self-contained muKsMaTT GitHub builds provide private libdvdcss 1.6.0 for CSS-protected DVD input. The Play Store bundle is CSS-free. See [THIRD_PARTY.md](../../THIRD_PARTY.md) for notices and licensing.

@@ -39,7 +39,7 @@ if [[ "$actual" != "$expected" ]]; then
   exit 1
 fi
 
-printf 'MattRip signing preflight\n' > "$tmp/payload.txt"
+printf 'muKsMaTT signing preflight\n' > "$tmp/payload.txt"
 (
   cd "$tmp"
   jar --create --file probe.jar payload.txt

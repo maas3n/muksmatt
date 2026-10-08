@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// configureDVDLibrarySearch keeps MattRip's private libdvdcss scoped to child
+// configureDVDLibrarySearch keeps muKsMaTT's private libdvdcss scoped to child
 // media tools. libdvdread loads libdvdcss dynamically, so FFmpeg itself does not
 // need to be rebuilt or linked against it.
 func configureDVDLibrarySearch(cmd *exec.Cmd, toolPath string) {

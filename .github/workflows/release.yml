@@ -162,8 +162,8 @@ jobs:
         shell: msys2 {0}
         run: |
           set -euo pipefail
-          prefix="$(cygpath -u "$RUNNER_TEMP")/mattrip-libdvdcss"
-          work="$(cygpath -u "$RUNNER_TEMP")/mattrip-libdvdcss-work"
+          prefix="$(cygpath -u "$RUNNER_TEMP")/muksmatt-libdvdcss"
+          work="$(cygpath -u "$RUNNER_TEMP")/muksmatt-libdvdcss-work"
           LIBDVDCSS_PREFIX="$prefix" LIBDVDCSS_WORK="$work" bash scripts/build-libdvdcss.sh
           dll="$(find "$prefix" -type f -iname 'libdvdcss*.dll' -print -quit)"
           test -n "$dll"
@@ -186,7 +186,7 @@ jobs:
           $miVersion = '26.05'
           $miAsset = 'MediaInfo_CLI_26.05_Windows_x64.zip'
           $miSha = 'f7f80620ce6d14f4995f0de6f98e3ef18ad29496db01899571152ee3311229f9'
-          $work = Join-Path $env:RUNNER_TEMP 'mattrip-bundled-tools'
+          $work = Join-Path $env:RUNNER_TEMP 'muksmatt-bundled-tools'
           $stage = Join-Path $PWD 'packaging\installer\bundled-tools'
           Remove-Item $work,$stage -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force -Path $work,$stage | Out-Null
@@ -213,11 +213,11 @@ jobs:
           New-Item -ItemType Directory -Force -Path $ffDest | Out-Null
           Copy-Item (Join-Path $ffBin '*') $ffDest -Force
 
-          $cssRoot = Join-Path $env:RUNNER_TEMP 'mattrip-libdvdcss'
+          $cssRoot = Join-Path $env:RUNNER_TEMP 'muksmatt-libdvdcss'
           $cssDll = Get-ChildItem $cssRoot -Filter 'libdvdcss*.dll' -File -Recurse | Select-Object -First 1
           if ($null -eq $cssDll) { throw 'libdvdcss DLL missing from pinned build' }
           Copy-Item $cssDll.FullName (Join-Path $ffDest 'libdvdcss-2.dll') -Force
-          $cssNoticeRoot = Join-Path $cssRoot 'share\mattrip\libdvdcss'
+          $cssNoticeRoot = Join-Path $cssRoot 'share\muksmatt\libdvdcss'
           $cssLicenseDir = Join-Path $ffDest 'licenses\libdvdcss'
           New-Item -ItemType Directory -Force -Path $cssLicenseDir | Out-Null
           Copy-Item (Join-Path $cssNoticeRoot 'COPYING') $cssLicenseDir -Force
@@ -245,20 +245,20 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ needs.metadata.outputs.version }}'
           New-Item -ItemType Directory -Force -Path .\dist | Out-Null
-          $stage = Join-Path $PWD "dist\MattRip-$version-Windows-Portable"
-          $releaseZip = Join-Path $PWD "dist\MattRip-$version-Windows-Portable.zip"
-          $internalZip = Join-Path $PWD "dist\MattRip-$version-Portable.zip"
+          $stage = Join-Path $PWD "dist\muKsMaTT-$version-Windows-Portable"
+          $releaseZip = Join-Path $PWD "dist\muKsMaTT-$version-Windows-Portable.zip"
+          $internalZip = Join-Path $PWD "dist\muKsMaTT-$version-Portable.zip"
           Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item $releaseZip,$internalZip -Force -ErrorAction SilentlyContinue
 
-          $ffDest = Join-Path $stage 'MattRipData\tools\ffmpeg-2026-09-08'
-          $miDest = Join-Path $stage 'MattRipData\tools\mediainfo-26.05'
+          $ffDest = Join-Path $stage 'muKsMaTTData\tools\ffmpeg-2026-09-08'
+          $miDest = Join-Path $stage 'muKsMaTTData\tools\mediainfo-26.05'
           New-Item -ItemType Directory -Force -Path $ffDest,$miDest | Out-Null
 
-          Copy-Item .\MattRip.exe (Join-Path $stage 'MattRip-Portable.exe') -Force
-          Copy-Item .\mattrip-cli.exe (Join-Path $stage 'mattrip-cli.exe') -Force
-          Copy-Item .\src\MattRip.exe.manifest (Join-Path $stage 'MattRip-Portable.exe.manifest') -Force
-          Copy-Item .\src\MattRip.ico (Join-Path $stage 'MattRip.ico') -Force
+          Copy-Item .\muksmatt.exe (Join-Path $stage 'muKsMaTT-Portable.exe') -Force
+          Copy-Item .\muksmatt-cli.exe (Join-Path $stage 'muksmatt-cli.exe') -Force
+          Copy-Item .\src\muksmatt.exe.manifest (Join-Path $stage 'muKsMaTT-Portable.exe.manifest') -Force
+          Copy-Item .\src\muksmatt.ico (Join-Path $stage 'muksmatt.ico') -Force
           Copy-Item .\THIRD_PARTY.md (Join-Path $stage 'THIRD_PARTY.md') -Force
           Copy-Item .\packaging\installer\bundled-tools\ffmpeg-2026-09-08\* $ffDest -Recurse -Force
           Copy-Item .\packaging\installer\bundled-tools\mediainfo-26.05\MediaInfo.exe $miDest -Force
@@ -275,15 +275,15 @@ jobs:
           }
 
           @(
-            "MattRip $version Portable",
+            "muKsMaTT $version Portable",
             "=========================",
             "",
-            "Extract this entire folder and run MattRip-Portable.exe.",
-            "The included mattrip-cli.exe supports scan, metadata, remux, --batch, --streams, --title and --no-chapters.",
+            "Extract this entire folder and run muKsMaTT-Portable.exe.",
+            "The included muksmatt-cli.exe supports scan, metadata, remux, --batch, --streams, --title and --no-chapters.",
             "No installer is required and no FFmpeg, FFprobe, or MediaInfo download is required.",
             "",
             "Keep the folder together. Portable settings, logs, and bundled tools are stored under:",
-            "  MattRipData\"
+            "  muKsMaTTData\"
           ) | Set-Content -LiteralPath (Join-Path $stage 'README-PORTABLE.txt') -Encoding UTF8
 
           $checksumPath = Join-Path $stage 'CHECKSUMS.txt'
@@ -311,7 +311,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ needs.metadata.outputs.version }}'
           $numericVersion = '${{ needs.metadata.outputs.windows_numeric_version }}'
-          $issPath = '.\packaging\installer\MattRip.iss'
+          $issPath = '.\packaging\installer\muKsMaTT.iss'
 
           $iss = Get-Content -LiteralPath $issPath -Raw
           $needle = 'VersionInfoVersion={#MyAppVersion}.0'
@@ -330,20 +330,20 @@ jobs:
 
           & $iscc "/DMyAppVersion=$version" $issPath
           if ($LASTEXITCODE -ne 0) { throw "Installer build failed with exit code $LASTEXITCODE" }
-          $setup = ".\dist\MattRip-$version-Setup.exe"
-          $releaseSetup = ".\dist\MattRip-$version-Windows-Setup.exe"
+          $setup = ".\dist\muKsMaTT-$version-Setup.exe"
+          $releaseSetup = ".\dist\muKsMaTT-$version-Windows-Setup.exe"
           if (-not (Test-Path -LiteralPath $setup)) { throw "Missing installer: $setup" }
           Move-Item -LiteralPath $setup -Destination $releaseSetup -Force
 
           $aioScript = '.\packaging\all-in-one\Build-AllInOne.ps1'
           & $aioScript -AppVersion $version
           if ($LASTEXITCODE -ne 0) { throw "All-in-One build failed with exit code $LASTEXITCODE" }
-          $aio = ".\dist\MattRip-$version-All-in-One.exe"
-          $releaseAio = ".\dist\MattRip-$version-Windows-All-in-One.exe"
+          $aio = ".\dist\muKsMaTT-$version-All-in-One.exe"
+          $releaseAio = ".\dist\muKsMaTT-$version-Windows-All-in-One.exe"
           if (-not (Test-Path -LiteralPath $aio)) { throw "Missing All-in-One executable: $aio" }
           Move-Item -LiteralPath $aio -Destination $releaseAio -Force
 
-          Remove-Item ".\dist\MattRip-$version-Portable.zip" -Force -ErrorAction SilentlyContinue
+          Remove-Item ".\dist\muKsMaTT-$version-Portable.zip" -Force -ErrorAction SilentlyContinue
 
       - name: Create Windows checksums
         shell: pwsh
@@ -351,9 +351,9 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $version = '${{ needs.metadata.outputs.version }}'
           $assets = @(
-            ".\dist\MattRip-$version-Windows-Setup.exe",
-            ".\dist\MattRip-$version-Windows-All-in-One.exe",
-            ".\dist\MattRip-$version-Windows-Portable.zip"
+            ".\dist\muKsMaTT-$version-Windows-Setup.exe",
+            ".\dist\muKsMaTT-$version-Windows-All-in-One.exe",
+            ".\dist\muKsMaTT-$version-Windows-Portable.zip"
           )
           $lines = foreach ($asset in $assets) {
             if (-not (Test-Path -LiteralPath $asset)) { throw "Missing release asset: $asset" }
@@ -370,9 +370,9 @@ jobs:
           name: release-windows
           if-no-files-found: error
           path: |
-            dist/MattRip-${{ needs.metadata.outputs.version }}-Windows-Setup.exe
-            dist/MattRip-${{ needs.metadata.outputs.version }}-Windows-All-in-One.exe
-            dist/MattRip-${{ needs.metadata.outputs.version }}-Windows-Portable.zip
+            dist/muKsMaTT-${{ needs.metadata.outputs.version }}-Windows-Setup.exe
+            dist/muKsMaTT-${{ needs.metadata.outputs.version }}-Windows-All-in-One.exe
+            dist/muKsMaTT-${{ needs.metadata.outputs.version }}-Windows-Portable.zip
             dist/SHA256SUMS-Windows.txt
 
   linux:
@@ -418,20 +418,20 @@ jobs:
         run: |
           set -euo pipefail
           version='${{ needs.metadata.outputs.version }}'
-          deb="dist/linux-release/MattRip-$version-Linux-amd64.deb"
-          standalone="dist/linux-release/MattRip-$version-Linux-amd64Standalone"
+          deb="dist/linux-release/muKsMaTT-$version-Linux-amd64.deb"
+          standalone="dist/linux-release/muKsMaTT-$version-Linux-amd64Standalone"
 
           dpkg-deb --info "$deb"
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
           dpkg-deb --extract "$deb" "$tmp"
-          test -x "$tmp/usr/bin/mattrip"
-          test -x "$tmp/usr/bin/mattrip-cli"
-          test -x "$tmp/usr/lib/mattrip/ffmpeg-bin/ffmpeg"
-          test -x "$tmp/usr/lib/mattrip/ffprobe-bin/ffprobe" || test -x "$tmp/usr/lib/mattrip/ffmpeg-bin/ffprobe"
-          test -x "$tmp/usr/lib/mattrip/mediainfo-bin/mediainfo"
-          test -e "$tmp/usr/lib/mattrip/ffmpeg-bin/libdvdcss.so.2"
-          test -s "$tmp/usr/share/doc/mattrip/libdvdcss-1.6.0-source.tar.xz"
+          test -x "$tmp/usr/bin/muksmatt"
+          test -x "$tmp/usr/bin/muksmatt-cli"
+          test -x "$tmp/usr/lib/muksmatt/ffmpeg-bin/ffmpeg"
+          test -x "$tmp/usr/lib/muksmatt/ffprobe-bin/ffprobe" || test -x "$tmp/usr/lib/muksmatt/ffmpeg-bin/ffprobe"
+          test -x "$tmp/usr/lib/muksmatt/mediainfo-bin/mediainfo"
+          test -e "$tmp/usr/lib/muksmatt/ffmpeg-bin/libdvdcss.so.2"
+          test -s "$tmp/usr/share/doc/muksmatt/libdvdcss-1.6.0-source.tar.xz"
 
           test -x "$standalone"
           file "$standalone" | grep -E 'ELF 64-bit.*x86-64'
@@ -512,7 +512,7 @@ jobs:
       - name: Prepare and verify Android app-signing identity
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_APP_SIGNING_KEYSTORE_BASE64 }}
-          MATTRIP_SIGNING_KEYSTORE: ${{ runner.temp }}/mattrip-app-signing.jks
+          MATTRIP_SIGNING_KEYSTORE: ${{ runner.temp }}/muksmatt-app-signing.jks
           MATTRIP_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_APP_SIGNING_STORE_PASSWORD }}
           MATTRIP_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_APP_SIGNING_KEY_ALIAS }}
           MATTRIP_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_APP_SIGNING_KEY_PASSWORD }}
@@ -520,7 +520,7 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$MATTRIP_SIGNING_KEYSTORE"
-          bash scripts/android-signing-preflight.sh "MattRip app-signing key"
+          bash scripts/android-signing-preflight.sh "muKsMaTT app-signing key"
 
       - name: Build bundled LGPL FFmpeg runtime
         run: |
@@ -536,7 +536,7 @@ jobs:
 
       - name: Test, lint and build signed versioned APK
         env:
-          ORG_GRADLE_PROJECT_MATTRIP_SIGNING_STORE_FILE: ${{ runner.temp }}/mattrip-app-signing.jks
+          ORG_GRADLE_PROJECT_MATTRIP_SIGNING_STORE_FILE: ${{ runner.temp }}/muksmatt-app-signing.jks
           ORG_GRADLE_PROJECT_MATTRIP_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_APP_SIGNING_STORE_PASSWORD }}
           ORG_GRADLE_PROJECT_MATTRIP_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_APP_SIGNING_KEY_ALIAS }}
           ORG_GRADLE_PROJECT_MATTRIP_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_APP_SIGNING_KEY_PASSWORD }}
@@ -565,8 +565,8 @@ jobs:
           grep -q 'FFmpeg version: 9.0.1' <<<"$build_info"
           grep -q 'CSS support: libdvdcss 1.6.0' <<<"$build_info"
           "${ANDROID_HOME}/build-tools/36.0.0/zipalign" -c -P 16 -v 4 "$APK"
-          "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/mattrip-apksigner.txt
-          ! grep -Fq "CN=Android Debug" /tmp/mattrip-apksigner.txt
+          "${ANDROID_HOME}/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/muksmatt-apksigner.txt
+          ! grep -Fq "CN=Android Debug" /tmp/muksmatt-apksigner.txt
           bash scripts/verify-android-signing-cert.sh \
             "$APK" \
             '${{ vars.ANDROID_APP_SIGNING_CERT_SHA256 }}' \
@@ -579,8 +579,8 @@ jobs:
           mkdir -p dist/android-release
           APK="$(find android/app/build/outputs/apk/release -name '*.apk' -print -quit)"
 
-          cp "$APK" "dist/android-release/MattRip-$version-Android.apk"
-          test -s "dist/android-release/MattRip-$version-Android.apk"
+          cp "$APK" "dist/android-release/muKsMaTT-$version-Android.apk"
+          test -s "dist/android-release/muKsMaTT-$version-Android.apk"
           cp "android/native/.work/ffmpeg-${FFMPEG_VERSION}.tar.xz" "dist/android-release/FFmpeg-${FFMPEG_VERSION}-source.tar.xz"
           cp android/native/.work/libudfread-1.1.2-source.tar.gz dist/android-release/
           cp android/native/.work/MediaInfoLib-source.tar.gz android/native/.work/ZenLib-source.tar.gz dist/android-release/
@@ -633,7 +633,7 @@ jobs:
         run: |
           set -euo pipefail
           version='${{ needs.metadata.outputs.version }}'
-          cp THIRD_PARTY.md "release-assets/MattRip-$version-THIRD-PARTY.md"
+          cp THIRD_PARTY.md "release-assets/muKsMaTT-$version-THIRD-PARTY.md"
 
           (
             cd release-assets
@@ -675,7 +675,7 @@ jobs:
             --repo "$GITHUB_REPOSITORY"
             --verify-tag
             --target "$(git rev-parse HEAD)"
-            --title "MattRip $version"
+            --title "muKsMaTT $version"
             --generate-notes
             --latest=false
           )
@@ -689,9 +689,9 @@ jobs:
         run: |
           set -euo pipefail
           version='${{ needs.metadata.outputs.version }}'
-          cp "release-assets/MattRip-$version-Windows-All-in-One.exe" release-assets/MattRip-Windows-All-in-One.exe
-          cp "release-assets/MattRip-$version-Linux-amd64Standalone" release-assets/MattRip-Linux-amd64Standalone
-          cp "release-assets/MattRip-$version-Android.apk" release-assets/MattRip-Android.apk
+          cp "release-assets/muKsMaTT-$version-Windows-All-in-One.exe" release-assets/muKsMaTT-Windows-All-in-One.exe
+          cp "release-assets/muKsMaTT-$version-Linux-amd64Standalone" release-assets/muKsMaTT-Linux-amd64Standalone
+          cp "release-assets/muKsMaTT-$version-Android.apk" release-assets/muKsMaTT-Android.apk
           (
             cd release-assets
             find . -maxdepth 1 -type f ! -name 'SHA256SUMS.txt' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt

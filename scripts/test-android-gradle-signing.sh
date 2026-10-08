@@ -7,9 +7,9 @@ trap 'rm -rf "$tmp"' EXIT
 keystore="$tmp/gradle-signing.jks"
 store_password='gradle-store-password-123'
 key_password='gradle-key-password-456'
-alias='mattrip-gradle-test'
+alias='muksmatt-gradle-test'
 
-keytool -genkeypair   -keystore "$keystore"   -storetype JKS   -storepass "$store_password"   -alias "$alias"   -keypass "$key_password"   -keyalg RSA -keysize 2048 -sigalg SHA256withRSA   -validity 3650   -dname "CN=MattRip Gradle Signing Test, O=MattRip" >/dev/null
+keytool -genkeypair   -keystore "$keystore"   -storetype JKS   -storepass "$store_password"   -alias "$alias"   -keypass "$key_password"   -keyalg RSA -keysize 2048 -sigalg SHA256withRSA   -validity 3650   -dname "CN=muKsMaTT Gradle Signing Test, O=muKsMaTT" >/dev/null
 
 gradle -p android   -PMATTRIP_SIGNING_STORE_FILE="$keystore"   -PMATTRIP_SIGNING_STORE_PASSWORD="$store_password"   -PMATTRIP_SIGNING_KEY_ALIAS="$alias"   -PMATTRIP_SIGNING_KEY_PASSWORD="$key_password"   -PMATTRIP_REQUIRE_SIGNING=true   :app:validateSigningRelease
 

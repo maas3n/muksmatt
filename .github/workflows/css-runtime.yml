@@ -34,9 +34,9 @@ jobs:
           prefix="$RUNNER_TEMP/libdvdcss"
           LIBDVDCSS_PREFIX="$prefix" bash scripts/build-libdvdcss.sh
           test -e "$prefix/lib/libdvdcss.so.2"
-          test -s "$prefix/share/mattrip/libdvdcss/libdvdcss-1.6.0-source.tar.xz"
+          test -s "$prefix/share/muksmatt/libdvdcss/libdvdcss-1.6.0-source.tar.xz"
           readlink -f "$prefix/lib/libdvdcss.so.2"
-          sha256sum "$prefix/share/mattrip/libdvdcss/libdvdcss-1.6.0-source.tar.xz"
+          sha256sum "$prefix/share/muksmatt/libdvdcss/libdvdcss-1.6.0-source.tar.xz"
       - name: Test Android stream callbacks against host libdvdcss with sanitizers
         run: bash android/native/tests/test-dvdcss-stream.sh "$RUNNER_TEMP/libdvdcss" "$RUNNER_TEMP/css-callbacks"
 
@@ -66,5 +66,5 @@ jobs:
           LIBDVDCSS_PREFIX="$prefix" bash scripts/build-libdvdcss.sh
           dll="$(find "$prefix" -type f -iname 'libdvdcss*.dll' -print -quit)"
           test -n "$dll"
-          test -s "$prefix/share/mattrip/libdvdcss/libdvdcss-1.6.0-source.tar.xz"
+          test -s "$prefix/share/muksmatt/libdvdcss/libdvdcss-1.6.0-source.tar.xz"
           file "$dll"

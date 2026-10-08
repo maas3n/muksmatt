@@ -4,8 +4,8 @@ standalone="$(realpath "${1:?Usage: test-standalone-clean.sh STANDALONE}")"
 # No GUI packages or multimedia tools are installed in this clean runtime.
 # This checks the actual embedded launcher, GUI dependency resolution, and tools.
 docker run --rm --network none \
-  --mount "type=bind,src=$standalone,dst=/mattrip,readonly" \
-  ubuntu:24.04 /mattrip --standalone-self-test
+  --mount "type=bind,src=$standalone,dst=/muksmatt,readonly" \
+  ubuntu:24.04 /muksmatt --standalone-self-test
 
 # The X server lives outside the container. Its client still has no host Mesa,
 # Wayland, X11 or multimedia packages and must use the embedded renderer.
@@ -24,16 +24,16 @@ export DISPLAY=":$(cat "$work/display")"
 docker run --rm --network none \
   --env DISPLAY \
   --mount type=bind,src=/tmp/.X11-unix,dst=/tmp/.X11-unix,readonly \
-  --mount "type=bind,src=$standalone,dst=/mattrip,readonly" \
+  --mount "type=bind,src=$standalone,dst=/muksmatt,readonly" \
   ubuntu:24.04 bash -euc '
-    if ! timeout 120 /mattrip --graphics-self-test > /tmp/graphics.log 2>&1; then
+    if ! timeout 120 /muksmatt --graphics-self-test > /tmp/graphics.log 2>&1; then
       cat /tmp/graphics.log
       exit 1
     fi
     cat /tmp/graphics.log
     grep -F "using bundled software rendering" /tmp/graphics.log
     grep -F "muKsMaTT GUI graphics self-test: OK" /tmp/graphics.log
-    root=$(echo /root/.cache/mattrip/standalone/*)
+    root=$(echo /root/.cache/muksmatt/standalone/*)
     # Disable the whole private stack: Mesa versions can load Gallium
     # without going through the swrast_dri.so entry point.
     mv "$root/software" "$root/software-disabled"

@@ -15,7 +15,7 @@ DIST="$ROOT/dist/linux-release"
 WORK="$ROOT/dist/linux-work"
 
 # Pinned third-party tools for the Debian package. They are installed only
-# below /usr/lib/mattrip and never replace distro executables in /usr/bin.
+# below /usr/lib/muksmatt and never replace distro executables in /usr/bin.
 FFMPEG_TAG="autobuild-2026-09-08-23-15"
 FFMPEG_ASSET="ffmpeg-N-126479-g08cd8df29d-linux64-gpl.tar.xz"
 FFMPEG_SHA256="635a2d74de852064852e95db5a9c475a86d36e2b6390e3c1ba5e46b2c46dfce0"
@@ -58,33 +58,33 @@ pushd "$SRC" >/dev/null
 export CGO_ENABLED=1
 go test -tags cli ./...
 go vet -tags cli ./...
-go build -trimpath -ldflags "-s -w -X main.appVersion=$APP_VERSION" -o "$WORK/bin/mattrip-bin" .
-go build -tags cli -trimpath -ldflags "-s -w -X main.appVersion=$APP_VERSION" -o "$WORK/bin/mattrip-cli-bin" .
+go build -trimpath -ldflags "-s -w -X main.appVersion=$APP_VERSION" -o "$WORK/bin/muksmatt-bin" .
+go build -tags cli -trimpath -ldflags "-s -w -X main.appVersion=$APP_VERSION" -o "$WORK/bin/muksmatt-cli-bin" .
 popd >/dev/null
 
-# The portable tarball remains small and uses the normal MattRip runtime tool
+# The portable tarball remains small and uses the normal muKsMaTT runtime tool
 # discovery/fallback behavior. The .deb below is the self-contained installer.
-PORTABLE="$WORK/MattRip-$APP_VERSION-Linux-amd64"
+PORTABLE="$WORK/muKsMaTT-$APP_VERSION-Linux-amd64"
 mkdir -p "$PORTABLE"
-install -m 0755 "$WORK/bin/mattrip-bin" "$PORTABLE/mattrip"
-install -m 0755 "$WORK/bin/mattrip-cli-bin" "$PORTABLE/mattrip-cli"
+install -m 0755 "$WORK/bin/muksmatt-bin" "$PORTABLE/muksmatt"
+install -m 0755 "$WORK/bin/muksmatt-cli-bin" "$PORTABLE/muksmatt-cli"
 cat > "$PORTABLE/README-LINUX.txt" <<TXT
-MattRip $APP_VERSION for Debian/Ubuntu Linux (amd64)
+muKsMaTT $APP_VERSION for Debian/Ubuntu Linux (amd64)
 
-mattrip      Desktop GUI
-mattrip-cli  Command-line interface
+muksmatt      Desktop GUI
+muksmatt-cli  Command-line interface
 
 This portable archive checks ffmpeg, ffprobe, and mediainfo on PATH first.
 System ffmpeg/ffprobe are used only when FFmpeg exposes the dvdvideo demuxer.
-If system FFmpeg is missing or incompatible, MattRip can prepare its pinned,
+If system FFmpeg is missing or incompatible, muKsMaTT can prepare its pinned,
 SHA-256-verified FFmpeg fallback in the current user's cache.
 MediaInfo is optional for the portable archive.
 
 For a one-file installer with all required multimedia tools included, use the
-MattRip .deb package. Its private tools never replace system multimedia tools.
+muKsMaTT .deb package. Its private tools never replace system multimedia tools.
 
 CSS-protected DVD access is supported through the bundled libdvdcss runtime.
-MattRip keeps libdvdcss private to its DVD tools and does not install it system-wide.
+muKsMaTT keeps libdvdcss private to its DVD tools and does not install it system-wide.
 Use this functionality only where you are legally permitted to access the disc.
 TXT
 
@@ -114,21 +114,21 @@ BUNDLED_FFPROBE="$(find "$FF_EXTRACT" -type f -name ffprobe -perm -u+x | head -n
 "$BUNDLED_FFMPEG" -hide_banner -demuxers 2>/dev/null | grep -q 'dvdvideo' || { echo "Pinned FFmpeg lacks dvdvideo demuxer" >&2; exit 1; }
 
 # Build the current pinned libdvdcss as a private shared runtime. libdvdread
-# discovers it dynamically, so MattRip keeps the existing dvdvideo pipeline.
+# discovers it dynamically, so muKsMaTT keeps the existing dvdvideo pipeline.
 LIBDVDCSS_PREFIX="$WORK/tools/libdvdcss-install"
 LIBDVDCSS_WORK="$WORK/tools/libdvdcss-build"
 LIBDVDCSS_PREFIX="$LIBDVDCSS_PREFIX" LIBDVDCSS_WORK="$LIBDVDCSS_WORK" \
   bash "$ROOT/scripts/build-libdvdcss.sh"
 test -e "$LIBDVDCSS_PREFIX/lib/libdvdcss.so.2" || { echo "Pinned libdvdcss runtime is missing" >&2; exit 1; }
 
-# The portable archive carries the same private runtime beside the MattRip
+# The portable archive carries the same private runtime beside the muKsMaTT
 # binaries. src/dvd_css_linux.go exposes that directory only to child media tools.
 cp -a "$LIBDVDCSS_PREFIX"/lib/libdvdcss.so* "$PORTABLE/"
 mkdir -p "$PORTABLE/licenses/libdvdcss"
-cp "$LIBDVDCSS_PREFIX/share/mattrip/libdvdcss/COPYING" "$PORTABLE/licenses/libdvdcss/"
-cp "$LIBDVDCSS_PREFIX/share/mattrip/libdvdcss/BUILD-INFO.txt" "$PORTABLE/licenses/libdvdcss/"
-cp "$LIBDVDCSS_PREFIX/share/mattrip/libdvdcss/libdvdcss-$LIBDVDCSS_VERSION-source.tar.xz" "$PORTABLE/licenses/libdvdcss/"
-tar -C "$WORK" -czf "$DIST/MattRip-$APP_VERSION-Linux-amd64.tar.gz" "$(basename "$PORTABLE")"
+cp "$LIBDVDCSS_PREFIX/share/muksmatt/libdvdcss/COPYING" "$PORTABLE/licenses/libdvdcss/"
+cp "$LIBDVDCSS_PREFIX/share/muksmatt/libdvdcss/BUILD-INFO.txt" "$PORTABLE/licenses/libdvdcss/"
+cp "$LIBDVDCSS_PREFIX/share/muksmatt/libdvdcss/libdvdcss-$LIBDVDCSS_VERSION-source.tar.xz" "$PORTABLE/licenses/libdvdcss/"
+tar -C "$WORK" -czf "$DIST/muKsMaTT-$APP_VERSION-Linux-amd64.tar.gz" "$(basename "$PORTABLE")"
 
 # Build MediaInfo with all four source repositories pinned to exact commits.
 # Pre-populating the directories prevents CMake FetchContent from following
@@ -165,106 +165,106 @@ DEBROOT="$WORK/deb-root"
 mkdir -p \
   "$DEBROOT/DEBIAN" \
   "$DEBROOT/usr/bin" \
-  "$DEBROOT/usr/lib/mattrip/app" \
-  "$DEBROOT/usr/lib/mattrip/ffmpeg-bin" \
-  "$DEBROOT/usr/lib/mattrip/mediainfo-bin" \
+  "$DEBROOT/usr/lib/muksmatt/app" \
+  "$DEBROOT/usr/lib/muksmatt/ffmpeg-bin" \
+  "$DEBROOT/usr/lib/muksmatt/mediainfo-bin" \
   "$DEBROOT/usr/share/applications" \
-  "$DEBROOT/usr/share/doc/mattrip"
+  "$DEBROOT/usr/share/doc/muksmatt"
 
-install -m 0755 "$WORK/bin/mattrip-bin" "$DEBROOT/usr/lib/mattrip/app/mattrip-bin"
-install -m 0755 "$WORK/bin/mattrip-cli-bin" "$DEBROOT/usr/lib/mattrip/app/mattrip-cli-bin"
-install -m 0755 "$BUNDLED_FFMPEG" "$DEBROOT/usr/lib/mattrip/ffmpeg-bin/ffmpeg"
-install -m 0755 "$BUNDLED_FFPROBE" "$DEBROOT/usr/lib/mattrip/ffmpeg-bin/ffprobe"
-install -m 0755 "$BUNDLED_MEDIAINFO" "$DEBROOT/usr/lib/mattrip/mediainfo-bin/mediainfo"
-cp -a "$LIBDVDCSS_PREFIX"/lib/libdvdcss.so* "$DEBROOT/usr/lib/mattrip/ffmpeg-bin/"
+install -m 0755 "$WORK/bin/muksmatt-bin" "$DEBROOT/usr/lib/muksmatt/app/muksmatt-bin"
+install -m 0755 "$WORK/bin/muksmatt-cli-bin" "$DEBROOT/usr/lib/muksmatt/app/muksmatt-cli-bin"
+install -m 0755 "$BUNDLED_FFMPEG" "$DEBROOT/usr/lib/muksmatt/ffmpeg-bin/ffmpeg"
+install -m 0755 "$BUNDLED_FFPROBE" "$DEBROOT/usr/lib/muksmatt/ffmpeg-bin/ffprobe"
+install -m 0755 "$BUNDLED_MEDIAINFO" "$DEBROOT/usr/lib/muksmatt/mediainfo-bin/mediainfo"
+cp -a "$LIBDVDCSS_PREFIX"/lib/libdvdcss.so* "$DEBROOT/usr/lib/muksmatt/ffmpeg-bin/"
 
-# These launchers modify PATH only for the MattRip child process. They do not
+# These launchers modify PATH only for the muKsMaTT child process. They do not
 # write to /etc/environment, shell profiles, alternatives, or any system PATH
 # configuration. This makes the .deb self-contained while leaving any existing
 # /usr/bin/ffmpeg, /usr/bin/ffprobe, and /usr/bin/mediainfo completely untouched.
-cat > "$DEBROOT/usr/bin/mattrip" <<'LAUNCHER'
+cat > "$DEBROOT/usr/bin/muksmatt" <<'LAUNCHER'
 #!/bin/sh
 set -eu
-FFDIR=/usr/lib/mattrip/ffmpeg-bin
-MIDIR=/usr/lib/mattrip/mediainfo-bin
+FFDIR=/usr/lib/muksmatt/ffmpeg-bin
+MIDIR=/usr/lib/muksmatt/mediainfo-bin
 PATH="$FFDIR:$MIDIR:$PATH"
 LD_LIBRARY_PATH="$FFDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export PATH LD_LIBRARY_PATH
-exec /usr/lib/mattrip/app/mattrip-bin "$@"
+exec /usr/lib/muksmatt/app/muksmatt-bin "$@"
 LAUNCHER
-chmod 0755 "$DEBROOT/usr/bin/mattrip"
+chmod 0755 "$DEBROOT/usr/bin/muksmatt"
 
-cat > "$DEBROOT/usr/bin/mattrip-cli" <<'LAUNCHER'
+cat > "$DEBROOT/usr/bin/muksmatt-cli" <<'LAUNCHER'
 #!/bin/sh
 set -eu
-FFDIR=/usr/lib/mattrip/ffmpeg-bin
-MIDIR=/usr/lib/mattrip/mediainfo-bin
+FFDIR=/usr/lib/muksmatt/ffmpeg-bin
+MIDIR=/usr/lib/muksmatt/mediainfo-bin
 PATH="$FFDIR:$MIDIR:$PATH"
 LD_LIBRARY_PATH="$FFDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export PATH LD_LIBRARY_PATH
-exec /usr/lib/mattrip/app/mattrip-cli-bin "$@"
+exec /usr/lib/muksmatt/app/muksmatt-cli-bin "$@"
 LAUNCHER
-chmod 0755 "$DEBROOT/usr/bin/mattrip-cli"
+chmod 0755 "$DEBROOT/usr/bin/muksmatt-cli"
 
 cat > "$DEBROOT/DEBIAN/control" <<CONTROL
-Package: mattrip
+Package: muksmatt
 Version: $DEB_VERSION
 Section: video
 Priority: optional
 Architecture: amd64
-Maintainer: MattRip project <noreply@github.com>
+Maintainer: muKsMaTT project <noreply@github.com>
 Depends: libc6 (>= 2.38), libstdc++6, libgcc-s1, ca-certificates, libgl1, libx11-6, libxcursor1, libxrandr2, libxinerama1, libxi6, libxkbcommon0, libwayland-client0
-Homepage: https://github.com/maas3n/MattRip
+Homepage: https://github.com/maas3n/muksmatt
 Description: Self-contained lossless DVD title remuxer
- MattRip scans DVD-Video titles and remuxes the selected title to MKV without
- transcoding. This package installs the MattRip desktop GUI and CLI together
- with private FFmpeg, FFprobe and MediaInfo binaries under /usr/lib/mattrip.
+ muKsMaTT scans DVD-Video titles and remuxes the selected title to MKV without
+ transcoding. This package installs the muKsMaTT desktop GUI and CLI together
+ with private FFmpeg, FFprobe and MediaInfo binaries under /usr/lib/muksmatt.
  Existing distro multimedia tools and the user's system PATH are never replaced.
 CONTROL
 
-cat > "$DEBROOT/usr/share/applications/mattrip.desktop" <<DESKTOP
+cat > "$DEBROOT/usr/share/applications/muksmatt.desktop" <<DESKTOP
 [Desktop Entry]
 Type=Application
-Name=MattRip
+Name=muKsMaTT
 Comment=Lossless DVD title remuxing to Matroska
-Exec=mattrip
+Exec=muksmatt
 Icon=video-x-generic
 Terminal=false
 Categories=AudioVideo;AudioVideoEditing;Utility;
 Keywords=DVD;MKV;FFmpeg;Remux;
 DESKTOP
 
-cat > "$DEBROOT/usr/share/doc/mattrip/README.Debian" <<TXT
-MattRip for Debian/Ubuntu
+cat > "$DEBROOT/usr/share/doc/muksmatt/README.Debian" <<TXT
+muKsMaTT for Debian/Ubuntu
 =========================
 
-This .deb is the self-contained Linux installer for MattRip $APP_VERSION.
+This .deb is the self-contained Linux installer for muKsMaTT $APP_VERSION.
 Install this one package; FFmpeg, FFprobe and MediaInfo are already included.
 
 Commands installed by this package:
-  /usr/bin/mattrip
-  /usr/bin/mattrip-cli
+  /usr/bin/muksmatt
+  /usr/bin/muksmatt-cli
 
-Private bundled tools used only by MattRip:
-  /usr/lib/mattrip/ffmpeg-bin/ffmpeg
-  /usr/lib/mattrip/ffmpeg-bin/ffprobe
-  /usr/lib/mattrip/mediainfo-bin/mediainfo
+Private bundled tools used only by muKsMaTT:
+  /usr/lib/muksmatt/ffmpeg-bin/ffmpeg
+  /usr/lib/muksmatt/ffmpeg-bin/ffprobe
+  /usr/lib/muksmatt/mediainfo-bin/mediainfo
 
-MattRip DOES NOT install or replace:
+muKsMaTT DOES NOT install or replace:
   /usr/bin/ffmpeg
   /usr/bin/ffprobe
   /usr/bin/mediainfo
 
 It also does not modify /etc/environment, shell startup files, alternatives, or
 any other system PATH configuration. The launcher prepends the private tool
-directories only to the MattRip process, so an existing system FFmpeg,
-FFprobe, or MediaInfo remains exactly as it was before MattRip was installed.
+directories only to the muKsMaTT process, so an existing system FFmpeg,
+FFprobe, or MediaInfo remains exactly as it was before muKsMaTT was installed.
 
-Use "mattrip-cli tools" to see the private paths MattRip resolves.
+Use "muksmatt-cli tools" to see the private paths muKsMaTT resolves.
 TXT
 
-cat > "$DEBROOT/usr/share/doc/mattrip/THIRD-PARTY-NOTICES" <<TXT
-Third-party software bundled with MattRip $APP_VERSION
+cat > "$DEBROOT/usr/share/doc/muksmatt/THIRD-PARTY-NOTICES" <<TXT
+Third-party software bundled with muKsMaTT $APP_VERSION
 =====================================================
 
 FFmpeg / FFprobe
@@ -288,8 +288,8 @@ Source: https://download.videolan.org/libdvdcss/$LIBDVDCSS_VERSION/libdvdcss-$LI
 Source SHA-256: 7ea556c846b7bfc32d47b41cae56d1863a6b6d5f706bb162778d6f298490977c
 License: GPL-2.0-or-later (see libdvdcss-COPYING in this directory).
 
-MattRip builds libdvdcss from the pinned upstream source and keeps the resulting
-shared library private to MattRip. libdvdread loads it dynamically for
+muKsMaTT builds libdvdcss from the pinned upstream source and keeps the resulting
+shared library private to muKsMaTT. libdvdread loads it dynamically for
 CSS-protected DVD access.
 
 MediaInfo
@@ -302,30 +302,30 @@ MediaArea zlib commit: $ZLIB_COMMIT
 Source: https://github.com/MediaArea/MediaInfo
 License: BSD-2-Clause (see MediaInfo-LICENSE in this directory).
 
-MattRip keeps these programs private under /usr/lib/mattrip and does not claim
-them as part of MattRip itself.
+muKsMaTT keeps these programs private under /usr/lib/muksmatt and does not claim
+them as part of muKsMaTT itself.
 TXT
-install -m 0644 "$MI_SRC/LICENSE" "$DEBROOT/usr/share/doc/mattrip/MediaInfo-LICENSE"
-install -m 0644 "$LIBDVDCSS_PREFIX/share/mattrip/libdvdcss/COPYING" "$DEBROOT/usr/share/doc/mattrip/libdvdcss-COPYING"
-install -m 0644 "$LIBDVDCSS_PREFIX/share/mattrip/libdvdcss/BUILD-INFO.txt" "$DEBROOT/usr/share/doc/mattrip/libdvdcss-BUILD-INFO.txt"
-install -m 0644 "$LIBDVDCSS_PREFIX/share/mattrip/libdvdcss/libdvdcss-$LIBDVDCSS_VERSION-source.tar.xz" "$DEBROOT/usr/share/doc/mattrip/libdvdcss-$LIBDVDCSS_VERSION-source.tar.xz"
+install -m 0644 "$MI_SRC/LICENSE" "$DEBROOT/usr/share/doc/muksmatt/MediaInfo-LICENSE"
+install -m 0644 "$LIBDVDCSS_PREFIX/share/muksmatt/libdvdcss/COPYING" "$DEBROOT/usr/share/doc/muksmatt/libdvdcss-COPYING"
+install -m 0644 "$LIBDVDCSS_PREFIX/share/muksmatt/libdvdcss/BUILD-INFO.txt" "$DEBROOT/usr/share/doc/muksmatt/libdvdcss-BUILD-INFO.txt"
+install -m 0644 "$LIBDVDCSS_PREFIX/share/muksmatt/libdvdcss/libdvdcss-$LIBDVDCSS_VERSION-source.tar.xz" "$DEBROOT/usr/share/doc/muksmatt/libdvdcss-$LIBDVDCSS_VERSION-source.tar.xz"
 
 # Preserve any FFmpeg license/readme text distributed in the pinned build.
 FF_LICENSE="$(find "$FF_EXTRACT" -type f \( -iname 'license*' -o -iname 'copying*' \) | head -n1 || true)"
-if [[ -n "$FF_LICENSE" ]]; then install -m 0644 "$FF_LICENSE" "$DEBROOT/usr/share/doc/mattrip/FFmpeg-LICENSE"; fi
+if [[ -n "$FF_LICENSE" ]]; then install -m 0644 "$FF_LICENSE" "$DEBROOT/usr/share/doc/muksmatt/FFmpeg-LICENSE"; fi
 
 # Use an installer-style release filename while retaining a Debian-compliant
 # package name/version in DEBIAN/control.
-dpkg-deb --build --root-owner-group "$DEBROOT" "$DIST/MattRip-$APP_VERSION-Linux-amd64.deb" >/dev/null
+dpkg-deb --build --root-owner-group "$DEBROOT" "$DIST/muKsMaTT-$APP_VERSION-Linux-amd64.deb" >/dev/null
 
-# Source snapshot from the exact MattRip commit being built, plus the module
+# Source snapshot from the exact muKsMaTT commit being built, plus the module
 # metadata resolved by CI so the archive is immediately buildable.
-SOURCE="$WORK/MattRip-$APP_VERSION-Source"
+SOURCE="$WORK/muKsMaTT-$APP_VERSION-Source"
 mkdir -p "$SOURCE"
 git -C "$ROOT" archive HEAD | tar -x -C "$SOURCE"
 if [[ -f "$SRC/go.mod" ]]; then cp "$SRC/go.mod" "$SOURCE/src/go.mod"; fi
 if [[ -f "$SRC/go.sum" ]]; then cp "$SRC/go.sum" "$SOURCE/src/go.sum"; fi
-tar -C "$WORK" -czf "$DIST/MattRip-$APP_VERSION-Source.tar.gz" "$(basename "$SOURCE")"
+tar -C "$WORK" -czf "$DIST/muKsMaTT-$APP_VERSION-Source.tar.gz" "$(basename "$SOURCE")"
 
 (
   cd "$DIST"

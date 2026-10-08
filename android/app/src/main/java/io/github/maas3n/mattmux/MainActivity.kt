@@ -88,7 +88,7 @@ class MainActivity : Activity(), BillingManager.Listener {
         if (BuildConfig.ENABLE_BILLING_PURCHASES) {
             billing = BillingManager(this, this).also { it.start() }
         } else {
-            proValue.text = "MattRip Pro: purchases disabled in this alpha"
+            proValue.text = "muKsMaTT Pro: purchases disabled in this alpha"
             billingValue.text = "Billing is off until production device validation and release readiness are complete."
             buyButton.visibility = View.GONE
         }
@@ -134,9 +134,9 @@ class MainActivity : Activity(), BillingManager.Listener {
     override fun onBillingState(state: BillingManager.State) {
         runOnUiThread {
             proOwned = state.proOwned
-            proValue.text = if (state.proOwned) "MattRip Pro: unlocked" else "MattRip Pro: not unlocked"
+            proValue.text = if (state.proOwned) "muKsMaTT Pro: unlocked" else "muKsMaTT Pro: not unlocked"
             val price = state.price ?: "price loads from Google Play"
-            buyButton.text = if (state.proOwned) "MattRip Pro owned" else "Buy MattRip Pro ($price)"
+            buyButton.text = if (state.proOwned) "muKsMaTT Pro owned" else "Buy muKsMaTT Pro ($price)"
             buyButton.isEnabled = !state.proOwned && BuildConfig.ENABLE_BILLING_PURCHASES
             billingValue.text = state.message ?: if (state.connected) "Google Play connected" else "Google Play unavailable"
             updateRemuxButton()
@@ -198,7 +198,7 @@ class MainActivity : Activity(), BillingManager.Listener {
             setPadding(horizontalPadding, topPadding, horizontalPadding, bottomPadding)
         }
         root.addView(TextView(this).apply {
-            text = "MattRip"
+            text = "muKsMaTT"
             textSize = 30f
             setTypeface(typeface, Typeface.BOLD)
         })
@@ -222,11 +222,11 @@ class MainActivity : Activity(), BillingManager.Listener {
         root.addView(button("Choose output folder") { chooseOutputFolder() })
 
         root.addView(section("Google Play"))
-        proValue = value("MattRip Pro: checking…")
+        proValue = value("muKsMaTT Pro: checking…")
         billingValue = value("Connecting to Google Play…")
         root.addView(proValue)
         root.addView(billingValue)
-        buyButton = button("Buy MattRip Pro") { billing?.launchProPurchase(this) }
+        buyButton = button("Buy muKsMaTT Pro") { billing?.launchProPurchase(this) }
         root.addView(buyButton)
 
         root.addView(section("Remux"))
@@ -315,7 +315,7 @@ class MainActivity : Activity(), BillingManager.Listener {
                 }
                 updateRemuxButton()
             }
-        }.apply { name = "MattRip-remux" }.start()
+        }.apply { name = "muKsMaTT-remux" }.start()
     }
 
     private fun chooseDemux() {
@@ -346,7 +346,7 @@ class MainActivity : Activity(), BillingManager.Listener {
                 toast(result.fold({ "Demux complete" }, { "Demux failed: ${it.message}" }))
                 updateRemuxButton()
             }
-        }.apply { name = "MattRip-demux" }.start()
+        }.apply { name = "muKsMaTT-demux" }.start()
     }
 
     private fun showTrackMetadata() {
@@ -374,7 +374,7 @@ class MainActivity : Activity(), BillingManager.Listener {
                 }
                 updateRemuxButton()
             }
-        }.apply { name = "MattRip-metadata" }.start()
+        }.apply { name = "muKsMaTT-metadata" }.start()
     }
 
     private fun showTrackDialog(probe: TrackProbeResult) {

@@ -7,10 +7,10 @@ Set-StrictMode -Version 2.0
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $dist = Join-Path $repoRoot 'dist'
-$iss = Join-Path $repoRoot 'packaging\installer\MattRip.iss'
-$portable = Join-Path $dist "MattRip-$AppVersion-Portable.zip"
-$thinSetup = Join-Path $dist "MattRip-$AppVersion-Thin-Setup.exe"
-$output = Join-Path $dist "MattRip-$AppVersion-All-in-One.exe"
+$iss = Join-Path $repoRoot 'packaging\installer\muKsMaTT.iss'
+$portable = Join-Path $dist "muKsMaTT-$AppVersion-Portable.zip"
+$thinSetup = Join-Path $dist "muKsMaTT-$AppVersion-Thin-Setup.exe"
+$output = Join-Path $dist "muKsMaTT-$AppVersion-All-in-One.exe"
 $assets = Join-Path $PSScriptRoot 'assets'
 
 if (-not (Test-Path -LiteralPath $portable)) {
@@ -31,8 +31,8 @@ if (-not (Test-Path -LiteralPath $thinSetup)) { throw "Thin installer was not pr
 
 Remove-Item -LiteralPath $assets -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force -Path $assets | Out-Null
-Copy-Item -LiteralPath $portable -Destination (Join-Path $assets 'MattRip-Portable.zip') -Force
-Copy-Item -LiteralPath $thinSetup -Destination (Join-Path $assets 'MattRip-Thin-Setup.exe') -Force
+Copy-Item -LiteralPath $portable -Destination (Join-Path $assets 'muKsMaTT-Portable.zip') -Force
+Copy-Item -LiteralPath $thinSetup -Destination (Join-Path $assets 'muKsMaTT-Thin-Setup.exe') -Force
 
 Push-Location $PSScriptRoot
 try {

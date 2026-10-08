@@ -1,63 +1,20 @@
-# MattRip
+# muKsMaTT
 
-**MattRip** is a cross-platform media remuxing, demuxing, merging, batch-processing, and CLI tool for **Windows, Linux, Android, and ChromeOS**. It focuses on copying existing media streams without transcoding.
+**muKsMaTT** is a cross-platform media remuxing, demuxing, merging, batch-processing, and CLI application for **Windows, Linux, Android, and ChromeOS**. It is developed from [MattRip beta-build-6-1](https://github.com/maas3n/MattRip/releases/tag/beta-build-6-1), preserving the existing interface, DVD processing, and direct stream demux.
 
-MattRip can remux DVD-Video titles to MKV, extract individual streams from DVD or MKV sources, combine selected streams from multiple files, and batch-remux DVD libraries. Windows, Linux, and Android/ChromeOS are developed together from the single `main` branch and use one shared product version.
+> **Development status — not yet released.** The muKsMaTT packaging and identity migration is underway. The automatic Unified release publisher is intentionally disabled, and **there are no muKsMaTT release downloads yet**. GitHub Actions builds in pull requests are development/test artifacts, not signed production releases. Do not use the original MattRip download links as if they were muKsMaTT builds.
 
-> Windows and Linux accept **physical DVD drives** as desktop DVD sources in DVD Remux/Demux, Advanced Merger, and the single-disc CLI. Current development builds package pinned **libdvdcss 1.6.0** for CSS-protected DVD access on Windows/Linux and in direct GitHub/development Android builds. The Google Play AAB stays CSS-free pending separate distribution-policy review, and Android USB optical-drive support remains a separate milestone.
+The long-term objective is **DVD and Blu-ray remux/demux and decryption** on Windows, Linux, and Android, without transcoding existing video/audio/subtitle streams where stream-copy is feasible. **Blu-ray is planned, not yet implemented.** Android physical USB optical-drive handling is also a separate milestone. The current DVD build uses existing libdvdread/libdvdnav/libdvdcss integrations, with the Google Play variant deliberately CSS-free pending a distribution review.
 
-## Latest stable release: MattRip 1.5.0
+## Build and release status
 
-MattRip 1.5.0 is the first public MattRip release. It starts from the verified MattMux 1.4.19 source baseline at commit `a794b451e454d7e0343cf5ba00ab200080e8e60b`, establishes MattRip's separate product identity, and adds the shared desktop DVDSource foundation with Windows/Linux physical DVD-drive input.
+- [GitHub Actions and development artifacts](https://github.com/maas3n/muksmatt/actions)
+- [Open development pull requests](https://github.com/maas3n/muksmatt/pulls)
+- [Release page](https://github.com/maas3n/muksmatt/releases) — downloads will appear **only after the first successful authorized publication**.
 
-Release downloads and checksums are published together on the [MattRip 1.5.0 release page](https://github.com/maas3n/MattRip/releases/tag/v1.5.0).
+When the first complete muKsMaTT release is published, the stable filenames will be `muKsMaTT-Windows-All-in-One.exe`, `muKsMaTT-Linux-amd64Standalone`, and `muKsMaTT-Android.apk`. The portable Windows executable and CLI use lowercase `muksmatt.exe` and `muksmatt-cli.exe`.
 
-
-## Download the current GitHub builds
-
-These links stay the same while their files follow the current `main` branch. Every successful release-grade `main` build publishes a complete snapshot before switching these download links. Failed builds leave the previous snapshot available, so merges do not require version-specific README URLs.
-
-### Windows All-in-One
-
-[**Download MattRip for Windows — All-in-One**](https://github.com/maas3n/MattRip/releases/latest/download/MattRip-Windows-All-in-One.exe)
-
-### Linux Standalone
-
-[**Download MattRip for Linux — Standalone**](https://github.com/maas3n/MattRip/releases/latest/download/MattRip-Linux-amd64Standalone)
-
-`curl`:
-
-```bash
-curl -L --fail -o MattRip-Linux-amd64Standalone https://github.com/maas3n/MattRip/releases/latest/download/MattRip-Linux-amd64Standalone
-chmod +x MattRip-Linux-amd64Standalone
-```
-
-`wget`:
-
-```bash
-wget -O MattRip-Linux-amd64Standalone https://github.com/maas3n/MattRip/releases/latest/download/MattRip-Linux-amd64Standalone
-chmod +x MattRip-Linux-amd64Standalone
-```
-
-### Android / ChromeOS APK
-
-[**Download MattRip for Android / ChromeOS**](https://github.com/maas3n/MattRip/releases/latest/download/MattRip-Android.apk)
-
-`curl`:
-
-```bash
-curl -L --fail -o MattRip-Android.apk https://github.com/maas3n/MattRip/releases/latest/download/MattRip-Android.apk
-```
-
-`wget`:
-
-```bash
-wget -O MattRip-Android.apk https://github.com/maas3n/MattRip/releases/latest/download/MattRip-Android.apk
-```
-
-> These links follow successful release-grade builds of **`main`**, not the numbered stable channel. GitHub’s “Latest” designation is reserved for these main snapshots. Numbered releases remain available by their version tags. Each main snapshot includes all platform packages, source archives, notices and checksums; published assets and tags are never replaced.
-
-## What MattRip can do
+## What muKsMaTT can do
 
 ### REMUX/DEMUX
 
@@ -68,17 +25,17 @@ The main **REMUX/DEMUX** tab accepts:
 - physical DVD drives on Windows/Linux (`D:`-style drive sources on Windows and `/dev/sr0`-style devices on Linux)
 - MKV files
 
-For DVD sources, MattRip discovers DVD titles, automatically selects the longest readable title, and lets you inspect metadata before processing. Video, audio, and subtitle streams are individually selectable. All detected streams are selected by default.
+For DVD sources, muKsMaTT discovers DVD titles, automatically selects the longest readable title, and lets you inspect metadata before processing. Video, audio, and subtitle streams are individually selectable. All detected streams are selected by default.
 
 Choose **REMUX** to create an MKV using stream copy. Chapter preservation is optional.
 
-Windows and Linux use FFmpeg's `dvdvideo` input backed by `libdvdread`/`libdvdnav`. Self-contained desktop builds keep libdvdcss private to MattRip and let libdvdread discover it dynamically; no separate CSS remux engine is introduced. Direct GitHub/development Android builds statically link libdvdcss into the JNI bridge and decrypt scrambled VOB sectors before the existing native FFmpeg/libav stream-copy reader consumes them. The Google Play build keeps CSS disabled for now. MattRip does not use its own DVD IFO parser.
+Windows and Linux use FFmpeg's `dvdvideo` input backed by `libdvdread`/`libdvdnav`. Self-contained desktop builds keep libdvdcss private to muKsMaTT and let libdvdread discover it dynamically; no separate CSS remux engine is introduced. Direct GitHub/development Android builds statically link libdvdcss into the JNI bridge and decrypt scrambled VOB sectors before the existing native FFmpeg/libav stream-copy reader consumes them. The Google Play build keeps CSS disabled for now. muKsMaTT does not use its own DVD IFO parser.
 
 ### Demux
 
 The **Demux** action in the **REMUX/DEMUX** tab extracts selected streams without re-encoding. It works with DVD folders, DVD ISOs, and MKV sources on all supported platforms, plus physical DVD drives on Windows/Linux.
 
-Depending on the selected streams, MattRip can export:
+Depending on the selected streams, muKsMaTT can export:
 
 - MPEG-2 video as `.mpeg2` or video-only `.VOB`
 - H.264 as `.h264`
@@ -149,15 +106,15 @@ remux
 --batch
 ```
 
-Single-disc remuxing supports options including `--title`, `--streams 0,2`, `--no-chapters`, and `--output`. The source can be a DVD folder, ISO image, or physical DVD device such as `D:` on Windows or `/dev/sr0` on Linux. Physical drives require an explicit `--output` because there is no writable folder beside the disc. Windows Setup/Portable packages include `mattrip-cli.exe`; Linux packages include `mattrip-cli`, and the Linux Standalone accepts CLI commands directly or after `--cli`.
+Single-disc remuxing supports options including `--title`, `--streams 0,2`, `--no-chapters`, and `--output`. The source can be a DVD folder, ISO image, or physical DVD device such as `D:` on Windows or `/dev/sr0` on Linux. Physical drives require an explicit `--output` because there is no writable folder beside the disc. Windows Setup/Portable packages include `muksmatt-cli.exe`; Linux packages include `muksmatt-cli`, and the Linux Standalone accepts CLI commands directly or after `--cli`.
 
 Example:
 
 ```bash
-mattrip-cli remux --title 1 --streams 0,2 /path/to/DVD-or.iso
-mattrip-cli remux --output /path/to/output D:
-mattrip-cli remux --output /path/to/output /dev/sr0
-mattrip-cli --batch --log=/path/to/mattrip-batch.log /path/to/Movies /path/to/output
+muksmatt-cli remux --title 1 --streams 0,2 /path/to/DVD-or.iso
+muksmatt-cli remux --output /path/to/output D:
+muksmatt-cli remux --output /path/to/output /dev/sr0
+muksmatt-cli --batch --log=/path/to/muksmatt-batch.log /path/to/Movies /path/to/output
 ```
 
 Android/ChromeOS also includes an in-app CLI with `scan`, `metadata`, `remux`, and `--batch` using Storage Access Framework content URIs. Android remux supports explicit `--streams` selection and `--no-chapters`.
@@ -195,7 +152,7 @@ Changing the source or DVD title clears the previous selection so stream indexes
 - All-in-One single-file GUI
 - normal Setup package
 - Portable ZIP
-- packaged `mattrip-cli.exe` in Setup/Portable
+- packaged `muksmatt-cli.exe` in Setup/Portable
 - bundled FFmpeg, FFprobe and MediaInfo
 - current binaries are not Authenticode-signed
 
@@ -234,7 +191,7 @@ See [`android/README.md`](android/README.md) for Android-specific implementation
 
 ## Quick start
 
-Use the rolling `main` downloads above for the current Windows All-in-One, Linux Standalone, and Android/ChromeOS APK builds. Numbered MattRip releases remain available from the GitHub Releases page, while the build-from-source instructions below track `main`.
+No public muKsMaTT downloads have been published yet. The release workflow will provide Windows All-in-One, Linux Standalone and Android/ChromeOS APK downloads after package validation, dedicated Android signing and explicit publication approval. The build-from-source instructions below track `main`.
 
 ## Build from source
 
@@ -282,7 +239,7 @@ See [`RELEASING.md`](RELEASING.md) for the full release policy.
 
 The current feature set grew substantially after the early 1.4.x releases. Notable additions and fixes include cross-platform Advanced Merger expansion, Advanced Merger selected-stream DEMUX with MPEG-2/VOB choice, one-click BATCH, shared Windows/Linux DVD CLI commands, Android BATCH and in-app CLI support, DVD ISO handling, native Android libdvdnav title selection, MKV input in the REMUX/DEMUX tab, direct DVD demux without a temporary MKV, DVD clock-reset/progress handling, DVD subtitle extraction, and stronger Windows/Linux/Android parity coverage.
 
-MattRip inherited this feature set from MattMux 1.4.19. For the pre-fork version history, see [MattMux Releases](https://github.com/maas3n/MattMux/releases).
+muKsMaTT inherits this feature set from [MattRip beta-build-6-1](https://github.com/maas3n/MattRip/releases/tag/beta-build-6-1). MattRip in turn originated from MattMux; see [MattMux Releases](https://github.com/maas3n/MattMux/releases) for earlier history.
 
 ## Third-party runtime tools
 
@@ -292,4 +249,4 @@ Exact pinned versions, hashes, source revisions, licensing notes, and provenance
 
 ## License
 
-MattRip is licensed under the [MIT License](LICENSE). Third-party components remain governed by their own licenses.
+muKsMaTT is licensed under the [MIT License](LICENSE). Third-party components remain governed by their own licenses.

@@ -36,7 +36,7 @@ jobs:
     needs: build
     uses: ./.github/workflows/android-startup.yml
     with:
-      artifact: MattRip-Android-ChromeOS-dev
+      artifact: muKsMaTT-Android-ChromeOS-dev
 
   build:
     runs-on: ubuntu-latest
@@ -140,7 +140,7 @@ jobs:
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: MattRip-Android-ChromeOS-dev
+          name: muKsMaTT-Android-ChromeOS-dev
           if-no-files-found: error
           path: |
             android/app/build/outputs/apk/debug/*.apk

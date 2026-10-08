@@ -19,7 +19,7 @@ func desktopCLI() {
 		return
 	}
 	if os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "version" {
-		fmt.Printf("MattRip CLI %s\n", appVersion)
+		fmt.Printf("muKsMaTT CLI %s\n", appVersion)
 		return
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -49,18 +49,18 @@ func desktopCLI() {
 }
 
 func printCLIUsage() {
-	fmt.Printf(`MattRip CLI %s
+	fmt.Printf(`muKsMaTT CLI %s
 
 Usage:
-  mattrip-cli tools
-  mattrip-cli scan SOURCE
-  mattrip-cli metadata [--title N] SOURCE
-  mattrip-cli remux [--title N] [--output DIR] [--no-chapters] [--streams 0,1,2] SOURCE
-  mattrip-cli --batch [--log FILE] MOVIES_ROOT [OUTPUT_ROOT]
-  mattrip-cli --version
+  muksmatt-cli tools
+  muksmatt-cli scan SOURCE
+  muksmatt-cli metadata [--title N] SOURCE
+  muksmatt-cli remux [--title N] [--output DIR] [--no-chapters] [--streams 0,1,2] SOURCE
+  muksmatt-cli --batch [--log FILE] MOVIES_ROOT [OUTPUT_ROOT]
+  muksmatt-cli --version
 
 SOURCE may be a DVD directory/VIDEO_TS structure, ISO image, or physical DVD drive (for example D: or /dev/sr0).
-If --title is omitted, MattRip scans the disc and selects the longest title.
+If --title is omitted, muKsMaTT scans the disc and selects the longest title.
 
 Batch mode accepts movie folders with VIDEO_TS subfolders and unmounted .iso files.
 Each movie is scanned through FFmpeg dvdvideo/libdvdread/libdvdnav, the longest title
@@ -69,7 +69,7 @@ OUTPUT_ROOT is omitted, each MKV is written beside its ISO or VIDEO_TS folder.
 --log is optional and appends batch activity to the chosen file.
 
 The CLI first uses compatible ffmpeg/ffprobe binaries already installed on PATH.
-If system FFmpeg lacks the dvdvideo demuxer, MattRip prepares its pinned fallback.
+If system FFmpeg lacks the dvdvideo demuxer, muKsMaTT prepares its pinned fallback.
 `, appVersion)
 }
 
@@ -87,7 +87,7 @@ func cliStatus(frac float64, status string) {
 func cliBatch(ctx context.Context, args []string) {
 	fs := flag.NewFlagSet("--batch", flag.ExitOnError)
 	logPath := fs.String("log", "", "optional batch log file")
-	fs.Usage = func() { fmt.Fprintln(os.Stderr, "Usage: mattrip-cli --batch [--log FILE] MOVIES_ROOT [OUTPUT_ROOT]") }
+	fs.Usage = func() { fmt.Fprintln(os.Stderr, "Usage: muksmatt-cli --batch [--log FILE] MOVIES_ROOT [OUTPUT_ROOT]") }
 	_ = fs.Parse(cliFlagsFirst(args))
 	if fs.NArg() < 1 || fs.NArg() > 2 {
 		fs.Usage()
@@ -121,7 +121,7 @@ func cliBatch(ctx context.Context, args []string) {
 
 func cliScan(ctx context.Context, args []string) {
 	fs := flag.NewFlagSet("scan", flag.ExitOnError)
-	fs.Usage = func() { fmt.Fprintln(os.Stderr, "Usage: mattrip-cli scan SOURCE") }
+	fs.Usage = func() { fmt.Fprintln(os.Stderr, "Usage: muksmatt-cli scan SOURCE") }
 	_ = fs.Parse(cliFlagsFirst(args))
 	if fs.NArg() != 1 {
 		fs.Usage()
@@ -146,7 +146,7 @@ func cliMetadata(ctx context.Context, args []string) {
 	titleN := fs.Int("title", 0, "DVD title number; 0 selects the longest title")
 	_ = fs.Parse(cliFlagsFirst(args))
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "Usage: mattrip-cli metadata [--title N] SOURCE")
+		fmt.Fprintln(os.Stderr, "Usage: muksmatt-cli metadata [--title N] SOURCE")
 		os.Exit(2)
 	}
 	src := fs.Arg(0)
@@ -164,7 +164,7 @@ func cliRemux(ctx context.Context, args []string) {
 	noChapters := fs.Bool("no-chapters", false, "do not preserve DVD chapter markers")
 	_ = fs.Parse(cliFlagsFirst(args))
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "Usage: mattrip-cli remux [--title N] [--output DIR] [--no-chapters] [--streams 0,1,2] SOURCE")
+		fmt.Fprintln(os.Stderr, "Usage: muksmatt-cli remux [--title N] [--output DIR] [--no-chapters] [--streams 0,1,2] SOURCE")
 		os.Exit(2)
 	}
 	fs.Visit(func(f *flag.Flag) {
@@ -214,6 +214,6 @@ func fatalIf(err error) {
 	if err == nil {
 		return
 	}
-	fmt.Fprintln(os.Stderr, "mattrip-cli:", err)
+	fmt.Fprintln(os.Stderr, "muksmatt-cli:", err)
 	os.Exit(1)
 }
