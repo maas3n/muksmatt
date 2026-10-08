@@ -104,7 +104,7 @@ func createMainWindow() error {
 
 func loadAppIcon() uintptr {
 	if exe, err := os.Executable(); err == nil {
-		iconPath := filepath.Join(filepath.Dir(exe), "muKsMaTT.ico")
+		iconPath := filepath.Join(filepath.Dir(exe), "muksmatt.ico")
 		if fileExists(iconPath) {
 			r, _, _ := procLoadImageW.Call(0, uintptr(unsafe.Pointer(utf16Ptr(iconPath))), IMAGE_ICON, 0, 0, LR_LOADFROMFILE|LR_DEFAULTSIZE)
 			if r != 0 {

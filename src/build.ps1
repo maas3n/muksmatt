@@ -17,8 +17,8 @@ $env:GOOS = 'windows'
 $env:GOARCH = 'amd64'
 
 go test ./...
-go build -trimpath -buildvcs=false -ldflags "-s -w -H=windowsgui -X main.appVersion=$buildVersion" -o ..\muKsMaTT.exe .
+go build -trimpath -buildvcs=false -ldflags "-s -w -H=windowsgui -X main.appVersion=$buildVersion" -o ..\muksmatt.exe .
 go build -trimpath -buildvcs=false -tags cli -ldflags "-s -w -X main.appVersion=$buildVersion" -o ..\muksmatt-cli.exe .
-Copy-Item .\muKsMaTT.exe.manifest ..\muKsMaTT.exe.manifest -Force
-Get-FileHash ..\muKsMaTT.exe -Algorithm SHA256
+Copy-Item .\muksmatt.exe.manifest ..\muksmatt.exe.manifest -Force
+Get-FileHash ..\muksmatt.exe -Algorithm SHA256
 Get-FileHash ..\muksmatt-cli.exe -Algorithm SHA256
