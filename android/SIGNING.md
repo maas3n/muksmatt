@@ -1,6 +1,9 @@
-# MattRip Android release signing
+# muKsMaTT Android release signing
 
-MattRip uses **two distinct Android private keys**:
+> This is a **new application identity**, independent of MattRip. **No muKsMaTT production APK has been published.** Generate new keys only when ready to configure the protected environments; never upload private keys, keystore Base64 or passwords to a pull request, README or issue. The Unified release workflow stays disabled until authorization.
+
+
+muKsMaTT uses **two distinct Android private keys**:
 
 1. **App-signing key** — signs the public GitHub APK. This is the long-lived installed-app identity.
 2. **Play upload key** — signs AAB files uploaded to Google Play. Google Play verifies this key, then signs delivered APKs with the app-signing key configured in Play App Signing.
@@ -9,14 +12,14 @@ The keys must remain distinct. Do not use a debug key for either role.
 
 ## Why the split matters
 
-Android updates require a compatible signing identity. MattRip publishes a direct GitHub APK as well as a Play AAB, so Play App Signing must use the same MattRip app-signing identity as the GitHub APK. The separate upload key is only for authenticating future Play uploads.
+Android updates require a compatible signing identity. muKsMaTT publishes a direct GitHub APK as well as a Play AAB, so Play App Signing must use the same muKsMaTT app-signing identity as the GitHub APK. The separate upload key is only for authenticating future Play uploads.
 
-For a new Play listing, do **not** let the GitHub APK and Play-distributed app end up with unrelated app-signing certificates. In Play Console, configure MattRip's own app-signing key when enrolling in Play App Signing, then register MattRip's separate upload certificate for AAB uploads.
+For a new Play listing, do **not** let the GitHub APK and Play-distributed app end up with unrelated app-signing certificates. In Play Console, configure muKsMaTT's own app-signing key when enrolling in Play App Signing, then register muKsMaTT's separate upload certificate for AAB uploads.
 
 Application ID:
 
 ```text
-io.github.maas3n.mattrip
+io.github.maas3n.muksmatt
 ```
 
 ## Generate the two keys
@@ -24,18 +27,18 @@ io.github.maas3n.mattrip
 Generate the keys on a trusted local machine, outside the Git repository:
 
 ```bash
-bash scripts/create-android-signing-keys.sh ../mattrip-android-signing
+bash scripts/create-android-signing-keys.sh ../muksmatt-android-signing
 ```
 
 The script refuses to create private signing material inside the repository. It creates:
 
 ```text
-mattrip-app-signing.jks
-mattrip-app-signing.jks.base64
-mattrip-app-signing-cert.pem
-mattrip-upload.jks
-mattrip-upload.jks.base64
-mattrip-upload-cert.pem
+muksmatt-app-signing.jks
+muksmatt-app-signing.jks.base64
+muksmatt-app-signing-cert.pem
+muksmatt-upload.jks
+muksmatt-upload.jks.base64
+muksmatt-upload-cert.pem
 ```
 
 The two `.jks` files and their Base64 forms are private. The two PEM certificates and their SHA-256 fingerprints are public.
@@ -50,9 +53,9 @@ Use protected GitHub Environments so the two private keys are scoped separately.
 
 Add these environment secrets:
 
-- `ANDROID_APP_SIGNING_KEYSTORE_BASE64` — contents of `mattrip-app-signing.jks.base64`
+- `ANDROID_APP_SIGNING_KEYSTORE_BASE64` — contents of `muksmatt-app-signing.jks.base64`
 - `ANDROID_APP_SIGNING_STORE_PASSWORD`
-- `ANDROID_APP_SIGNING_KEY_ALIAS` — default generator value: `mattrip-app-signing`
+- `ANDROID_APP_SIGNING_KEY_ALIAS` — default generator value: `muksmatt-app-signing`
 - `ANDROID_APP_SIGNING_KEY_PASSWORD`
 
 Recommended: require deployment approval for the `android-release` environment before public-release jobs can use the app-signing private key.
@@ -61,9 +64,9 @@ Recommended: require deployment approval for the `android-release` environment b
 
 Add these environment secrets:
 
-- `ANDROID_UPLOAD_KEYSTORE_BASE64` — contents of `mattrip-upload.jks.base64`
+- `ANDROID_UPLOAD_KEYSTORE_BASE64` — contents of `muksmatt-upload.jks.base64`
 - `ANDROID_UPLOAD_STORE_PASSWORD`
-- `ANDROID_UPLOAD_KEY_ALIAS` — default generator value: `mattrip-upload`
+- `ANDROID_UPLOAD_KEY_ALIAS` — default generator value: `muksmatt-upload`
 - `ANDROID_UPLOAD_KEY_PASSWORD`
 
 ### Repository Actions variables
@@ -92,13 +95,13 @@ This workflow is intentionally lightweight and does not rebuild FFmpeg.
 
 ## Play Console setup
 
-For the first MattRip Play setup:
+For the first muKsMaTT Play setup:
 
-1. Create/select the app with application ID `io.github.maas3n.mattrip`.
+1. Create/select the app with application ID `io.github.maas3n.muksmatt`.
 2. Enroll in Play App Signing.
-3. When Play asks how the app-signing key should be established, choose the flow that lets you provide MattRip's existing **app-signing key**. Follow the current Play Console instructions for securely transferring that key.
+3. When Play asks how the app-signing key should be established, choose the flow that lets you provide muKsMaTT's existing **app-signing key**. Follow the current Play Console instructions for securely transferring that key.
 4. Verify the Play Console **app signing certificate SHA-256** matches `ANDROID_APP_SIGNING_CERT_SHA256`.
-5. Register `mattrip-upload-cert.pem` as the **upload certificate**.
+5. Register `muksmatt-upload-cert.pem` as the **upload certificate**.
 6. Verify the Play Console **upload certificate SHA-256** matches `ANDROID_UPLOAD_CERT_SHA256`.
 7. Build Play bundles only through **Android / ChromeOS Play bundle**, which signs the AAB with the upload key.
 
@@ -108,7 +111,7 @@ Google Play may change the secure key-import flow over time; follow the current 
 
 The unified GitHub release workflow:
 
-- uses only the `android-release` app-signing key for `MattRip-<version>-Android.apk`;
+- uses only the `android-release` app-signing key for `muKsMaTT-<version>-Android.apk`;
 - refuses to build the release APK without complete signing credentials;
 - verifies the final APK certificate against `ANDROID_APP_SIGNING_CERT_SHA256`;
 - rejects Android debug certificates.
@@ -131,7 +134,7 @@ Do not replace keys silently.
 ## Main downloads and upgrade numbering
 
 The unified workflow checks the `android-release` signing settings before any
-platform build. If it reports missing settings, restore the **existing**
+platform build. If it reports missing settings, restore the **designated long-lived**
 app-signing keystore and passwords listed above, and configure the matching
 `ANDROID_APP_SIGNING_CERT_SHA256` variable. Do not generate a replacement key
 for an already distributed app. Then dispatch **Unified release** on `main`
@@ -139,8 +142,7 @@ with an empty tag. The workflow never publishes an unsigned fallback.
 
 Both numbered releases and main snapshots now use Android version code
 `1000000000 + GITHUB_RUN_NUMBER` from the **same Unified release workflow**.
-This migration is above the previously published 1.5/1.6 codes and allows
-upgrades in either channel as new runs are published. Do not reset this counter
+This inherited migration sequence was designed for the upstream project; muKsMaTT has not yet published a signed app. Verify the chosen first muKsMaTT versionCode before releasing, then preserve it for future updates. Do not reset this counter
 or restore the former semantic-version formula. Rerunning a workflow retains
 its version code. Play bundles must use the corresponding GitHub APK's version
 code; do not allocate an independent higher sequence in the Play workflow.

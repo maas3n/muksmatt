@@ -1,8 +1,8 @@
 # muKsMaTT
 
-**muKsMaTT** is a cross-platform media remuxing, demuxing, merging, batch-processing, and CLI application for **Windows, Linux, Android, and ChromeOS**. It is developed from [muKsMaTT beta-build-6-1](https://github.com/maas3n/muKsMaTT/releases/tag/beta-build-6-1), preserving the existing interface, DVD processing, and direct stream demux.
+**muKsMaTT** is a cross-platform media remuxing, demuxing, merging, batch-processing, and CLI application for **Windows, Linux, Android, and ChromeOS**. It is developed from [MattRip beta-build-6-1](https://github.com/maas3n/MattRip/releases/tag/beta-build-6-1), preserving the existing interface, DVD processing, and direct stream demux.
 
-> **Development status — not yet released.** The muKsMaTT packaging and identity migration is underway. The automatic Unified release publisher is intentionally disabled, and **there are no muKsMaTT release downloads yet**. GitHub Actions builds in pull requests are development/test artifacts, not signed production releases. Do not use the old muKsMaTT download links as if they were muKsMaTT builds.
+> **Development status — not yet released.** The muKsMaTT packaging and identity migration is underway. The automatic Unified release publisher is intentionally disabled, and **there are no muKsMaTT release downloads yet**. GitHub Actions builds in pull requests are development/test artifacts, not signed production releases. Do not use the original MattRip download links as if they were muKsMaTT builds.
 
 The long-term objective is **DVD and Blu-ray remux/demux and decryption** on Windows, Linux, and Android, without transcoding existing video/audio/subtitle streams where stream-copy is feasible. **Blu-ray is planned, not yet implemented.** Android physical USB optical-drive handling is also a separate milestone. The current DVD build uses existing libdvdread/libdvdnav/libdvdcss integrations, with the Google Play variant deliberately CSS-free pending a distribution review.
 

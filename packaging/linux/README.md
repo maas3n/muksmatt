@@ -78,4 +78,4 @@ Install the generated `.deb` with `apt` so recommended distro tools are installe
 sudo apt install ./dist/linux-release/muKsMaTT-1.3.0-dev1-Linux-amd64.deb
 ```
 
-Self-contained muKsMaTT GitHub builds provide private libdvdcss 1.6.0 for CSS-protected DVD input. The Play Store bundle is CSS-free. See THIRD_PARTY.md for notices and licensing.
+Self-contained muKsMaTT GitHub builds provide private libdvdcss 1.6.0 for CSS-protected DVD input. The Play Store bundle is CSS-free. See [THIRD_PARTY.md](../../THIRD_PARTY.md) for notices and licensing.
