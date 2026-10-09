@@ -22,7 +22,7 @@ class BluraySafPathIndexTest {
         assertEquals("stream-file", i.node("BDMV/stream/00001.m2ts")?.documentId)
         assertArrayEquals(arrayOf("00800.mpls"), i.names("bdmv/playlist"))
         assertNull(i.names("bdmv/stream/00001.m2ts"))
-        assertEquals(emptyList<String>(), i.names("BDMV/PLAYLIST/UNKNOWN")?.toList() ?: emptyList())
+        assertNull(i.names("BDMV/PLAYLIST/UNKNOWN"))
         assertArrayEquals(arrayOf("PLAYLIST", "STREAM"), i.names("/BDMV"))
     }
 
