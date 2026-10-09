@@ -33,14 +33,6 @@ class BluraySmokeInstrumentation : Instrumentation() {
         }
     }
 
-    private fun tracks(path: File): Pair<List<String>, Boolean> {
-        check(path.isFile && path.length() > 0) { "Empty native MKV: $path" }
-        val records = AdvancedMergerNative().probe(path.absolutePath).toList()
-        val kinds = records.map { it.split('\t') }
-        val codecs = kinds.filter { it.size > 2 && it[0] != "-1" }.map { it[2] }
-        return codecs to kinds.any { it.size > 1 && it[1] == "chapters" }
-    }
-
     private fun ensureMkv(
         safRoot: File, outputUri: android.net.Uri, filename: String,
         wantVideo: Boolean, wantAudio: Boolean, chapters: Boolean,
@@ -50,16 +42,19 @@ class BluraySmokeInstrumentation : Instrumentation() {
         check(output.name == filename && output.isFile && output.length() > 0) {
             "Blu-ray SAF did not publish expected MKV: $output"
         }
-        val (codecs, hasChapters) = tracks(output)
-        check(codecs.contains("mpeg2video") == wantVideo && codecs.contains("flac") == wantAudio) {
-            "Wrong Blu-ray output streams in $filename: $codecs"
+        val tracks = BlurayNativeIsoBridge(targetContext.contentResolver).inspectMkv(output.absolutePath)
+        check(tracks.mpeg2Video == (if (wantVideo) 1 else 0) &&
+              tracks.flacAudio == (if (wantAudio) 1 else 0) && tracks.other == 0) {
+            "Wrong Blu-ray output streams in $filename: $tracks"
         }
-        check(hasChapters == chapters) { "Blu-ray chapter selection lost for $filename" }
+        check(tracks.chapters == (if (chapters) 2 else 0)) {
+            "Blu-ray chapter selection lost for $filename: $tracks"
+        }
         check(safRoot.walkTopDown().none {
             it.isFile && (it.name.contains(".partial-") || it.name == "source.mkv")
         }) { "Blu-ray created or leaked an intermediate MKV" }
         Log.i("muKsMaTTBlurayTest",
-            "Device SAF MKV $filename: bytes=${output.length()} streams=$codecs chapters=$hasChapters")
+            "Device SAF MKV $filename: bytes=${output.length()} tracks=$tracks")
     }
 
     override fun onStart() {
