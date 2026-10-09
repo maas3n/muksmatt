@@ -134,6 +134,8 @@ CROSS
     "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
         grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeRemuxIso'
     "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
+        grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeInspectMkv'
+    "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
         grep -q 'Java_io_github_maas3n_mattmux_BluraySafTreeBridge_nativeRemuxTree'
     "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
         grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeProbeStreamsIso'
