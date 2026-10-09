@@ -77,6 +77,14 @@ try:
         if "MUKSMATT_DEMUX_SMOKE_PASS" not in result:
             raise RuntimeError("Packaged MediaInfo/demux validation failed: " + result)
         print("Bundled MediaInfo and native demux passed on Android.")
+    if "BluraySmokeInstrumentation" in adb("shell", "pm", "list", "instrumentation"):
+        blu_result = adb("shell", "am", "instrument", "-w",
+            package + "/io.github.maas3n.mattmux.BluraySmokeInstrumentation")
+        (logs / "bluray-saf-smoke.txt").write_text(blu_result)
+        if "MUKSMATT_BLURAY_SAF_PASS" not in blu_result:
+            raise RuntimeError("Android Blu-ray ISO/BDMV SAF remux failed: " + blu_result)
+        print("Blu-ray native ISO + BDMV SAF remux, chapter and selected-track validation passed.")
+
 finally:
     logcat = adb("logcat", "-b", "main", "-b", "system", "-b", "crash", "-d", "-v", "threadtime")
     (logs / "logcat.txt").write_text(logcat)
