@@ -35,6 +35,16 @@ internal class BluraySafTreeBridge(
         sampleBytes: Int,
     ): String
 
+    private external fun nativeProbeStreamsTree(
+        provider: BluraySafTreeBridge, playlist: Int,
+    ): String
+
+    fun probeStreams(playlist: Int? = null): List<BlurayMkvTrack> {
+        require(playlist == null || playlist in 0..99999) { "Invalid Blu-ray playlist" }
+        if (loadError != null) throw IOException("Native Blu-ray engine unavailable", loadError)
+        return BlurayMkvTrackCatalog.parse(nativeProbeStreamsTree(this, playlist ?: -1))
+    }
+
     private external fun nativeRemuxTree(
         provider: BluraySafTreeBridge,
         playlist: Int,
@@ -60,9 +70,14 @@ internal class BluraySafTreeBridge(
             "Invalid Blu-ray stream selection"
         }
         if (loadError != null) throw IOException("Native Blu-ray engine unavailable", loadError)
+        val chosen = if (selectedStreamIndexes == null) null else {
+            BlurayMkvTrackCatalog.validateSelection(
+                probeStreams(playlist), selectedStreamIndexes
+            )
+        }
         return BlurayMkvSafOutput.create(resolver, outputTreeUri, outputName) { fd ->
             val error = nativeRemuxTree(
-                this, playlist ?: -1, fd, selectedStreamIndexes, includeChapters
+                this, playlist ?: -1, fd, chosen, includeChapters
             )
             if (error != null) throw IOException(error)
         }
