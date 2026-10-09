@@ -203,9 +203,9 @@ build_abi() {
       exit 1
     fi
 
-    grep -q '^#define CONFIG_FLAC_ENCODER 1$' config.h
-    grep -q '^#define CONFIG_PCM_BLURAY_DECODER 1$' config.h
-    if grep -q '^#define CONFIG_DVDVIDEO_DEMUXER 1$' config.h; then
+    grep -q '^#define CONFIG_FLAC_ENCODER 1$' config_components.h
+    grep -q '^#define CONFIG_PCM_BLURAY_DECODER 1$' config_components.h
+    if grep -q '^#define CONFIG_DVDVIDEO_DEMUXER 1$' config_components.h; then
       echo "FFmpeg dvdvideo demuxer must remain disabled in the commercial build." >&2
       exit 1
     fi
