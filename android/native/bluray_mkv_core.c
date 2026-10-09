@@ -220,23 +220,30 @@ static int audio_init(AudioTrack *a, const AVStream *source, AVStream *dest)
     if (!a->decoder || !a->encoder) return AVERROR(ENOMEM);
     int ret = avcodec_parameters_to_context(a->decoder, source->codecpar);
     if (ret < 0 || (ret = avcodec_open2(a->decoder, dec, NULL)) < 0) return ret;
-    a->encoder->sample_rate = a->decoder->sample_rate;
+    a->encoder->sample_rate = source->codecpar->sample_rate > 0
+                            ? source->codecpar->sample_rate : a->decoder->sample_rate;
     if (a->encoder->sample_rate <= 0) return AVERROR_INVALIDDATA;
     a->encoder->time_base = (AVRational){1, a->encoder->sample_rate};
-    a->encoder->sample_fmt = a->decoder->bits_per_raw_sample > 16
+    /* Use 32-bit FLAC for 20/24-bit PCM. Do not truncate LPCM to 16-bit. */
+    int source_bits = source->codecpar->bits_per_raw_sample;
+    if (source->codecpar->bits_per_coded_sample > source_bits)
+        source_bits = source->codecpar->bits_per_coded_sample;
+    a->encoder->sample_fmt = source_bits > 16 ||
+                            a->decoder->sample_fmt == AV_SAMPLE_FMT_S32 ||
+                            a->decoder->sample_fmt == AV_SAMPLE_FMT_S32P
                             ? AV_SAMPLE_FMT_S32 : AV_SAMPLE_FMT_S16;
-    ret = av_channel_layout_copy(&a->encoder->ch_layout, &a->decoder->ch_layout);
+    const AVChannelLayout *layout = a->decoder->ch_layout.nb_channels
+        ? &a->decoder->ch_layout : &source->codecpar->ch_layout;
+    ret = av_channel_layout_copy(&a->encoder->ch_layout, layout);
     if (ret < 0) return ret;
     if (!a->encoder->ch_layout.nb_channels) return AVERROR_INVALIDDATA;
     if ((ret = avcodec_open2(a->encoder, enc, NULL)) < 0) return ret;
     ret = avcodec_parameters_from_context(dest->codecpar, a->encoder);
     if (ret < 0) return ret;
     dest->time_base = a->encoder->time_base;
-    ret = swr_alloc_set_opts2(&a->swr, &a->encoder->ch_layout,
-        a->encoder->sample_fmt, a->encoder->sample_rate, &a->decoder->ch_layout,
-        a->decoder->sample_fmt, a->decoder->sample_rate, 0, NULL);
-    if (ret < 0 || !a->swr) return ret < 0 ? ret : AVERROR(ENOMEM);
-    if ((ret = swr_init(a->swr)) < 0) return ret;
+    /* The PCM_BLURAY decoder may not establish its final sample format until
+     * the first decoded frame. Initialize swresample lazily from that frame.
+     */
     a->fifo = av_audio_fifo_alloc(a->encoder->sample_fmt,
                                    a->encoder->ch_layout.nb_channels, 4096);
     if (!a->fifo) return AVERROR(ENOMEM);
@@ -294,6 +301,22 @@ static int audio_drain_decoder(AudioTrack *a, AVFormatContext *out,
     }
     int ret;
     while ((ret = avcodec_receive_frame(a->decoder, decoded)) >= 0) {
+        if (!a->swr) {
+            const AVChannelLayout *layout = decoded->ch_layout.nb_channels
+                                          ? &decoded->ch_layout : &a->decoder->ch_layout;
+            if (!layout->nb_channels || decoded->sample_rate != a->encoder->sample_rate) {
+                ret = AVERROR_INVALIDDATA;
+                break;
+            }
+            ret = swr_alloc_set_opts2(&a->swr, &a->encoder->ch_layout,
+                a->encoder->sample_fmt, a->encoder->sample_rate, layout,
+                decoded->format, decoded->sample_rate, 0, NULL);
+            if (ret < 0 || !a->swr) {
+                if (ret >= 0) ret = AVERROR(ENOMEM);
+                break;
+            }
+            if ((ret = swr_init(a->swr)) < 0) break;
+        }
         if (a->next_pts == AV_NOPTS_VALUE) {
             a->next_pts = decoded->best_effort_timestamp == AV_NOPTS_VALUE ? 0 :
                 av_rescale_q(decoded->best_effort_timestamp, source->time_base,
