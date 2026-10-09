@@ -7,7 +7,7 @@ import sys
 import tempfile
 import zipfile
 
-EXPECTED = {'libavutil.so', 'libavcodec.so', 'libavformat.so', 'libudfread.so', 'libmattmux_jni.so', 'libmediainfo_jni.so', 'libbluray.so', 'libmuksmatt_bluray.so', 'libmuksmatt_bluray_udfread.so'}
+EXPECTED = {'libavutil.so', 'libavcodec.so', 'libavformat.so', 'libswresample.so', 'libudfread.so', 'libmattmux_jni.so', 'libmediainfo_jni.so', 'libbluray.so', 'libmuksmatt_bluray.so', 'libmuksmatt_bluray_udfread.so'}
 ABIS = {'arm64-v8a', 'x86_64'}
 
 for filename in sys.argv[1:]:
