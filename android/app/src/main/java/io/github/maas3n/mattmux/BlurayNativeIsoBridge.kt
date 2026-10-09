@@ -54,6 +54,20 @@ internal class BlurayNativeIsoBridge(private val resolver: ContentResolver) {
         }
     }
 
+    /** Inspect a completed Matroska file using the packaged FFmpeg demuxer, not the DVD JNI. */
+    internal data class MkvSummary(
+        val mpeg2Video: Int, val flacAudio: Int, val other: Int, val chapters: Int,
+    )
+
+    private external fun nativeInspectMkv(path: String): IntArray
+
+    internal fun inspectMkv(path: String): MkvSummary {
+        if (!isAvailable) throw IOException(unavailableReason ?: "Blu-ray runtime unavailable")
+        val fields = nativeInspectMkv(path)
+        check(fields.size == 4 && fields.all { it >= 0 }) { "Invalid native MKV inspection result" }
+        return MkvSummary(fields[0], fields[1], fields[2], fields[3])
+    }
+
     private external fun nativeInspectIso(
         fd: Int,
         requestedPlaylist: Int,
