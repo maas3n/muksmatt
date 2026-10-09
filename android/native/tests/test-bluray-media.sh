@@ -35,6 +35,23 @@ test -d "$WORK/disc/BDMV/STREAM"
 "$TSMUXER" "$WORK/disc.meta" "$WORK/disc.iso"
 test -s "$WORK/disc.iso"
 
+# Emulator mode: package tiny, freely authored BDMV and ISO fixtures in the
+# development APK. This stage has no host libbluray dependencies; Android
+# performs the actual remux using SAF and its native .so files.
+if [[ "${1:-}" == "--fixtures-only" ]]; then
+    destination="${2:?Expected debug asset directory}"
+    mkdir -p "$destination"
+    cp -a "$WORK/disc/BDMV" "$destination/BDMV"
+    if [[ -d "$WORK/disc/CERTIFICATE" ]]; then
+        cp -a "$WORK/disc/CERTIFICATE" "$destination/CERTIFICATE"
+    fi
+    cp "$WORK/disc.iso" "$destination/movie.iso"
+    printf '%s\n' "Self-authored unencrypted Blu-ray test; 6 seconds; 24-bit stereo LPCM; MPEG-2; chapter marks" > "$destination/README.txt"
+    echo "Blu-ray Android debug ISO/BDMV fixtures generated"
+    exit 0
+fi
+
+
 cc -std=c11 -O2 -Wall -Wextra \
   "$ROOT/android/native/bluray_mkv_core.c" \
   "$ROOT/android/native/tests/bluray_mkv_media_harness.c" \
