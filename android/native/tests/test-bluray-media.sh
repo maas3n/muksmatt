@@ -103,4 +103,41 @@ for name in ("folder.pcm","image.pcm","audio-only.pcm"):
     if pcm != ref:
         raise SystemExit("Lossless LPCM -> FLAC sample parity failure: "+name)
 PY
+# Exercise ordinary lossless stream copying independently of Blu-ray LPCM.
+# H.264 encoder is only a host fixture-authoring tool, not an Android dependency.
+ffmpeg -hide_banner -loglevel error -nostdin -y \
+    -f lavfi -i "testsrc2=size=1280x720:rate=24000/1001:duration=4" \
+    -an -c:v libx264 -preset fast -pix_fmt yuv420p -profile:v high -level:v 4.1 \
+    -x264-params "aud=1:repeat-headers=1" -f h264 "$WORK/copy-video.h264"
+ffmpeg -hide_banner -loglevel error -nostdin -y \
+    -f lavfi -i "sine=frequency=907:sample_rate=48000:duration=4" \
+    -ac 2 -c:a ac3 -b:a 384k -f ac3 "$WORK/copy-audio.ac3"
+cat > "$WORK/copy.meta" <<META
+MUXOPT --blu-ray --custom-chapters=00:00:01.000;00:00:02.000
+V_MPEG4/ISO/AVC, $WORK/copy-video.h264, fps=23.976
+A_AC3, $WORK/copy-audio.ac3, lang=eng
+META
+"$TSMUXER" "$WORK/copy.meta" "$WORK/copy-disc"
+"$WORK/bluray-remux-test" "$WORK/copy-disc" "$WORK/copy.mkv" all
+python3 - "$WORK/copy.mkv" <<'PY'
+import json,subprocess,sys
+data=json.loads(subprocess.check_output([
+    "ffprobe","-v","error","-show_streams","-show_chapters","-of","json",sys.argv[1]]))
+codecs={(s["codec_type"],s["codec_name"]) for s in data["streams"]}
+print("H.264/AC-3 authored Blu-ray copied codecs:", codecs)
+assert ("video","h264") in codecs, codecs
+assert ("audio","ac3") in codecs, codecs
+assert len(data.get("chapters",[]))>=2, data.get("chapters")
+PY
+SOURCE_COPY_VIDEO="$(ffmpeg -hide_banner -loglevel error -nostdin -i "$WORK/copy-video.h264" \
+    -f rawvideo -pix_fmt yuv420p - | sha256sum | awk '{print $1}')"
+OUTPUT_COPY_VIDEO="$(ffmpeg -hide_banner -loglevel error -nostdin -i "$WORK/copy.mkv" \
+    -map 0:v:0 -f rawvideo -pix_fmt yuv420p - | sha256sum | awk '{print $1}')"
+echo "H.264 decoded-frame source/output SHA-256: $SOURCE_COPY_VIDEO / $OUTPUT_COPY_VIDEO"
+test "$SOURCE_COPY_VIDEO" = "$OUTPUT_COPY_VIDEO"
+ffmpeg -hide_banner -loglevel error -nostdin -y -i "$WORK/copy.mkv" \
+    -map 0:a:0 -c:a copy -f ac3 "$WORK/output-copy-audio.ac3"
+cmp "$WORK/copy-audio.ac3" "$WORK/output-copy-audio.ac3"
+echo "H.264/AC-3 Blu-ray stream-copy parity PASSED"
+
 echo "Blu-ray ISO/BDMV native media validation PASSED"
