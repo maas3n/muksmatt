@@ -357,3 +357,44 @@ cleanup:
     if (indices) (*env)->ReleaseIntArrayElements(env, selected_streams, indices, JNI_ABORT);
     return ret < 0 ? (*env)->NewStringUTF(env, error) : NULL;
 }
+
+
+JNIEXPORT jstring JNICALL
+Java_io_github_maas3n_mattmux_BluraySafTreeBridge_nativeProbeStreamsTree(
+    JNIEnv *env, jobject self, jobject provider, jint requested_playlist)
+{
+    (void)self;
+    if (!provider || requested_playlist < -1 || requested_playlist > 99999) {
+        io_error(env, "Invalid Blu-ray BDMV stream probe arguments");
+        return NULL;
+    }
+    jclass cls = (*env)->GetObjectClass(env, provider);
+    if (!cls) return NULL;
+    SafTree ctx = {
+        .env = env, .provider = provider,
+        .open_fd = (*env)->GetMethodID(env, cls, "nativeOpenFd", "(Ljava/lang/String;)I"),
+        .list_names = (*env)->GetMethodID(env, cls, "nativeListNames", "(Ljava/lang/String;)[Ljava/lang/String;"),
+    };
+    (*env)->DeleteLocalRef(env, cls);
+    if (!ctx.open_fd || !ctx.list_names) {
+        io_error(env, "Missing Blu-ray SAF JNI methods");
+        return NULL;
+    }
+    BLURAY *bd = bd_init();
+    char report[32768] = {0};
+    char error[512] = "Cannot open Blu-ray folder";
+    int ret = -1;
+    if (bd && bd_open_files(bd, &ctx, saf_open_dir, saf_open_file) && !ctx.callback_error)
+        ret = muksmatt_bd_tracks(bd, requested_playlist, report, sizeof(report),
+                                 error, sizeof(error));
+    if (ctx.callback_error) {
+        ret = -1;
+        snprintf(error, sizeof(error), "SAF provider failed during Blu-ray track discovery");
+    }
+    if (bd) bd_close(bd);
+    if (ret < 0) {
+        io_error(env, error);
+        return NULL;
+    }
+    return (*env)->NewStringUTF(env, report);
+}
