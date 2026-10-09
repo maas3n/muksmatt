@@ -9,6 +9,7 @@
 #include <jni.h>
 #include <libbluray/bluray.h>
 #include "bluray_saf_blocks.h"
+#include "bluray_mkv_core.h"
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -115,4 +116,42 @@ cleanup:
     free(result);
     if (failure && !(*env)->ExceptionCheck(env)) io_error(env, failure);
     return response;
+}
+
+
+/* Write a selected Blu-ray playlist straight to a SAF MKV output descriptor.
+ * Both SAF descriptors are borrowed and remain owned by Kotlin.
+ * Returns NULL on success, descriptive error on failure.
+ */
+JNIEXPORT jstring JNICALL
+Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeRemuxIso(
+    JNIEnv *env, jobject self, jint iso_fd, jint output_fd, jint playlist,
+    jintArray selected_streams, jboolean chapters)
+{
+    (void)self;
+    if (iso_fd < 0 || output_fd < 0 || playlist < -1 || playlist > 99999) {
+        return (*env)->NewStringUTF(env, "Invalid Blu-ray ISO remux descriptors or playlist");
+    }
+    int count = selected_streams ? (*env)->GetArrayLength(env, selected_streams) : 0;
+    if (count < 0 || count > 256)
+        return (*env)->NewStringUTF(env, "Invalid Blu-ray stream selection");
+    jint *indices = selected_streams ? (*env)->GetIntArrayElements(env, selected_streams, NULL) : NULL;
+    if (selected_streams && !indices) return NULL;
+    BluraySafBlocks blocks = {.fd = -1};
+    BLURAY *bd = NULL;
+    char error[512] = "Could not open Blu-ray ISO";
+    int ret = -1;
+    if (bluray_saf_blocks_open(&blocks, iso_fd) < 0) {
+        snprintf(error, sizeof(error), "Blu-ray ISO must be a complete seekable SAF file");
+    } else {
+        bd = bd_init();
+        if (!bd || !bd_open_stream(bd, &blocks, bluray_saf_read_blocks))
+            snprintf(error, sizeof(error), "libbluray cannot open the selected Blu-ray ISO");
+        else ret = muksmatt_bd_mkv(bd, playlist, output_fd, (const int *)indices,
+                                    count, chapters ? 1 : 0, error, sizeof(error));
+    }
+    if (bd) bd_close(bd);
+    bluray_saf_blocks_close(&blocks);
+    if (indices) (*env)->ReleaseIntArrayElements(env, selected_streams, indices, JNI_ABORT);
+    return ret < 0 ? (*env)->NewStringUTF(env, error) : NULL;
 }
