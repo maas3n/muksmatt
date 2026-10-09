@@ -109,6 +109,7 @@ CROSS
         -I"$prefix/include" \
         "$SCRIPT_DIR/bluray_saf_blocks.c" \
         "$SCRIPT_DIR/bluray_iso_jni.c" \
+        "$SCRIPT_DIR/bluray_saf_files.c" \
         -L"$jni" -L"$udf_prefix/lib" -Wl,--no-as-needed \
         -lbluray -ludfread -llog -ldl \
         -Wl,-z,max-page-size=16384 -Wl,--no-undefined \
@@ -123,6 +124,8 @@ CROSS
     patchelf --print-needed "$jni/libmuksmatt_bluray.so" | grep -q '^libbluray.so$'
     "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
         grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeInspectIso'
+    "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
+        grep -q 'Java_io_github_maas3n_mattmux_BluraySafTreeBridge_nativeInspectTree'
     "$TOOLCHAIN/bin/llvm-strip" --strip-unneeded "$jni/libbluray.so" "$jni/libmuksmatt_bluray.so" "$jni/libmuksmatt_bluray_udfread.so"
     {
       echo
