@@ -228,10 +228,17 @@ static int audio_init(AudioTrack *a, const AVStream *source, AVStream *dest)
     int source_bits = source->codecpar->bits_per_raw_sample;
     if (source->codecpar->bits_per_coded_sample > source_bits)
         source_bits = source->codecpar->bits_per_coded_sample;
-    a->encoder->sample_fmt = source_bits > 16 ||
-                            a->decoder->sample_fmt == AV_SAMPLE_FMT_S32 ||
-                            a->decoder->sample_fmt == AV_SAMPLE_FMT_S32P
-                            ? AV_SAMPLE_FMT_S32 : AV_SAMPLE_FMT_S16;
+    /* PCM_BLURAY's decoder can discover the 16/24-bit depth only after
+     * parsing its first packet, AFTER Matroska header creation. If the
+     * container cannot identify depth yet, choose S32/24-bit FLAC, never a
+     * potentially destructive default to S16. S16->S32 conversion preserves
+     * exact sample values when packed to 24-bit FLAC.
+     */
+    a->encoder->sample_fmt = source_bits == 16 ||
+        a->decoder->sample_fmt == AV_SAMPLE_FMT_S16
+        ? AV_SAMPLE_FMT_S16 : AV_SAMPLE_FMT_S32;
+    a->encoder->bits_per_raw_sample =
+        a->encoder->sample_fmt == AV_SAMPLE_FMT_S16 ? 16 : 24;
     const AVChannelLayout *layout = a->decoder->ch_layout.nb_channels
         ? &a->decoder->ch_layout : &source->codecpar->ch_layout;
     ret = av_channel_layout_copy(&a->encoder->ch_layout, layout);
