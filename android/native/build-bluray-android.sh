@@ -110,8 +110,9 @@ CROSS
         "$SCRIPT_DIR/bluray_saf_blocks.c" \
         "$SCRIPT_DIR/bluray_iso_jni.c" \
         "$SCRIPT_DIR/bluray_saf_files.c" \
+        "$SCRIPT_DIR/bluray_mkv_core.c" \
         -L"$jni" -L"$udf_prefix/lib" -Wl,--no-as-needed \
-        -lbluray -ludfread -llog -ldl \
+        -lbluray -ludfread -lavformat -lavcodec -lavutil -lswresample -llog -ldl \
         -Wl,-z,max-page-size=16384 -Wl,--no-undefined \
         -Wl,-soname,libmuksmatt_bluray.so \
         -o "$jni/libmuksmatt_bluray.so"
@@ -119,6 +120,10 @@ CROSS
         case "$dep" in
             libudfread.so.*) patchelf --replace-needed "$dep" libmuksmatt_bluray_udfread.so "$jni/libmuksmatt_bluray.so" ;;
             libbluray.so.*) patchelf --replace-needed "$dep" libbluray.so "$jni/libmuksmatt_bluray.so" ;;
+            libavformat.so.*) patchelf --replace-needed "$dep" libavformat.so "$jni/libmuksmatt_bluray.so" ;;
+            libavcodec.so.*) patchelf --replace-needed "$dep" libavcodec.so "$jni/libmuksmatt_bluray.so" ;;
+            libavutil.so.*) patchelf --replace-needed "$dep" libavutil.so "$jni/libmuksmatt_bluray.so" ;;
+            libswresample.so.*) patchelf --replace-needed "$dep" libswresample.so "$jni/libmuksmatt_bluray.so" ;;
         esac
     done < <(patchelf --print-needed "$jni/libmuksmatt_bluray.so")
     patchelf --print-needed "$jni/libmuksmatt_bluray.so" | grep -q '^libbluray.so$'
@@ -126,6 +131,33 @@ CROSS
         grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeInspectIso'
     "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
         grep -q 'Java_io_github_maas3n_mattmux_BluraySafTreeBridge_nativeInspectTree'
+    "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
+        grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeRemuxIso'
+    "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
+        grep -q 'Java_io_github_maas3n_mattmux_BluraySafTreeBridge_nativeRemuxTree'
+    patchelf --print-needed "$jni/libmuksmatt_bluray.so" | grep -q '^libswresample.so
+    "$TOOLCHAIN/bin/llvm-strip" --strip-unneeded "$jni/libbluray.so" "$jni/libmuksmatt_bluray.so" "$jni/libmuksmatt_bluray_udfread.so"
+    {
+      echo
+      echo "Blu-ray Android native ISO reader ($abi): libbluray $BLURAY_VERSION"
+      echo "Blu-ray source SHA256: $BLURAY_SHA256"
+      echo "Playlist scanning and bounded transport sample via seekable SAF descriptor"
+      for file in "$jni/libbluray.so" "$jni/libmuksmatt_bluray.so" "$jni/libmuksmatt_bluray_udfread.so"; do
+          echo "$(basename "$file"):"
+          patchelf --print-needed "$file" | sed 's/^/  needs: /'
+          sha256sum "$file" | sed 's/^/  sha256: /'
+      done
+    } >> "$ASSETS/ffmpeg-build-info.txt"
+}
+
+build_abi arm64-v8a aarch64-linux-android
+build_abi x86_64 x86_64-linux-android
+
+mkdir -p "$ROOT/dist/android-release"
+cp "$ARCHIVE" "$UDF_ARCHIVE" "$ROOT/dist/android-release/"
+cp "$ASSETS/LIBBLURAY_COPYING.txt" "$ASSETS/LIBBLURAY_UDFREAD_COPYING.txt" "$ROOT/dist/android-release/"
+echo "Android native libbluray ISO reader built for both ABIs."
+
     "$TOOLCHAIN/bin/llvm-strip" --strip-unneeded "$jni/libbluray.so" "$jni/libmuksmatt_bluray.so" "$jni/libmuksmatt_bluray_udfread.so"
     {
       echo
