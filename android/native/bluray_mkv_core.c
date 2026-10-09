@@ -554,3 +554,74 @@ cleanup:
     if (ret < 0 && error[0] == '\0') detail(error, error_size, "Blu-ray remux failed", ret);
     return ret;
 }
+
+
+/* Read MPEG-TS headers from a real libbluray playlist to expose stable,
+ * selectable FFmpeg stream indices without writing an intermediate file. */
+int muksmatt_bd_tracks(BLURAY *bd, int requested_playlist, char *report,
+                        size_t report_size, char *error, size_t error_size)
+{
+    if (!bd || !report || report_size < 128 || !error || error_size == 0)
+        return AVERROR(EINVAL);
+    report[0] = 0;
+    snprintf(error, error_size, "Cannot probe Blu-ray streams");
+    int ret = AVERROR_INVALIDDATA;
+    BLURAY_TITLE_INFO *title = select_playlist(bd, requested_playlist);
+    if (!title) {
+        snprintf(error, error_size, "Blu-ray playlist unavailable or encryption is not handled");
+        return ret;
+    }
+    BdReader reader = {.bd = bd};
+    AVIOContext *io = NULL;
+    AVFormatContext *input = NULL;
+    uint8_t *buffer = av_malloc(BD_AVIO_SIZE);
+    if (!buffer) { ret = AVERROR(ENOMEM); goto done; }
+    io = avio_alloc_context(buffer, BD_AVIO_SIZE, 0, &reader,
+                            bd_read_avio, NULL, bd_seek_avio);
+    if (!io) { av_free(buffer); ret = AVERROR(ENOMEM); goto done; }
+    input = avformat_alloc_context();
+    if (!input) { ret = AVERROR(ENOMEM); goto done; }
+    input->pb = io;
+    input->flags |= AVFMT_FLAG_CUSTOM_IO;
+    const AVInputFormat *mpegts = av_find_input_format("mpegts");
+    if (!mpegts) { ret = AVERROR_DEMUXER_NOT_FOUND; goto done; }
+    ret = avformat_open_input(&input, NULL, mpegts, NULL);
+    if (ret < 0) goto done;
+    ret = avformat_find_stream_info(input, NULL);
+    if (ret < 0) goto done;
+    if (!input->nb_streams || input->nb_streams > MAX_BD_STREAMS) {
+        ret = AVERROR_INVALIDDATA; goto done;
+    }
+    size_t used = (size_t)snprintf(report, report_size, "MUKSMATT_BD_TRACKS_1\n");
+    if (used >= report_size) { ret = AVERROR(ENOSPC); goto done; }
+    int found = 0;
+    for (unsigned i = 0; i < input->nb_streams; ++i) {
+        const AVCodecParameters *params = input->streams[i]->codecpar;
+        const char *type = NULL;
+        switch (params->codec_type) {
+            case AVMEDIA_TYPE_VIDEO: type = "video"; break;
+            case AVMEDIA_TYPE_AUDIO: type = "audio"; break;
+            case AVMEDIA_TYPE_SUBTITLE: type = "subtitle"; break;
+            default: continue;
+        }
+        const char *codec = avcodec_get_name(params->codec_id);
+        int written = snprintf(report + used, report_size - used,
+            "S\t%u\t%s\t%s\n", i, type, codec);
+        if (written < 0 || (size_t)written >= report_size - used) {
+            ret = AVERROR(ENOSPC); goto done;
+        }
+        used += (size_t)written;
+        ++found;
+    }
+    if (!found) { ret = AVERROR_INVALIDDATA; goto done; }
+    ret = reader.error < 0 ? AVERROR(EIO) : 0;
+done:
+    if (ret < 0 && error[0]) detail(error, error_size, "Blu-ray stream probe failed", ret);
+    if (input) {
+        if (input->iformat) avformat_close_input(&input);
+        else avformat_free_context(input);
+    }
+    if (io) { av_freep(&io->buffer); avio_context_free(&io); }
+    bd_free_title_info(title);
+    return ret;
+}
