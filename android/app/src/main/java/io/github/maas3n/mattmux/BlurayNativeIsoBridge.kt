@@ -60,6 +60,18 @@ internal class BlurayNativeIsoBridge(private val resolver: ContentResolver) {
         sampleBytes: Int,
     ): String
 
+    private external fun nativeProbeStreamsIso(sourceFd: Int, playlist: Int): String
+
+    fun probeStreams(isoUri: Uri, playlist: Int? = null): List<BlurayMkvTrack> {
+        require(playlist == null || playlist in 0..99999) { "Invalid Blu-ray playlist" }
+        if (!isAvailable) throw IOException(unavailableReason ?: "Blu-ray runtime unavailable")
+        val source = resolver.openFileDescriptor(isoUri, "r")
+            ?: throw IOException("SAF provider cannot open Blu-ray ISO")
+        return source.use {
+            BlurayMkvTrackCatalog.parse(nativeProbeStreamsIso(it.fd, playlist ?: -1))
+        }
+    }
+
     private external fun nativeRemuxIso(
         sourceFd: Int, outputFd: Int, playlist: Int,
         selectedStreamIndexes: IntArray?, includeChapters: Boolean,
@@ -87,13 +99,17 @@ internal class BlurayNativeIsoBridge(private val resolver: ContentResolver) {
             "Invalid Blu-ray stream selection"
         }
         if (!isAvailable) throw IOException(unavailableReason ?: "Blu-ray runtime unavailable")
+        val tracks = if (selectedStreamIndexes != null) probeStreams(isoUri, playlist) else null
+        val chosen = if (tracks != null) {
+            BlurayMkvTrackCatalog.validateSelection(tracks, selectedStreamIndexes)
+        } else null
         val source = resolver.openFileDescriptor(isoUri, "r")
             ?: throw IOException("SAF provider cannot open Blu-ray ISO")
         return source.use {
             BlurayMkvSafOutput.create(resolver, outputTreeUri, outputName) { outputFd ->
                 val error = nativeRemuxIso(
                     it.fd, outputFd, playlist ?: -1,
-                    selectedStreamIndexes, includeChapters
+                    chosen, includeChapters
                 )
                 if (error != null) throw IOException(error)
             }
