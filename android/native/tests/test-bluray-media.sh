@@ -140,4 +140,34 @@ ffmpeg -hide_banner -loglevel error -nostdin -y -i "$WORK/copy.mkv" \
 cmp "$WORK/copy-audio.ac3" "$WORK/output-copy-audio.ac3"
 echo "H.264/AC-3 Blu-ray stream-copy parity PASSED"
 
+# Six distinct channels, 24-bit/48kHz: check Blu-ray LPCM channel ordering
+# and exact lossless sample preservation, not just stereo 24-bit conversion.
+ffmpeg -hide_banner -loglevel error -nostdin -y \
+  -f lavfi -i "aevalsrc=0.10*sin(2*PI*330*t)|0.11*sin(2*PI*440*t)|0.12*sin(2*PI*550*t)|0.13*sin(2*PI*660*t)|0.14*sin(2*PI*770*t)|0.15*sin(2*PI*880*t):s=48000:d=6:c=5.1" \
+  -c:a pcm_s24le "$WORK/surround.wav"
+cat > "$WORK/surround.meta" <<META
+MUXOPT --blu-ray --custom-chapters=00:00:01.000;00:00:03.000
+V_MPEG-2, $WORK/video.m2v, fps=25
+A_LPCM, $WORK/surround.wav, lang=eng
+META
+"$TSMUXER" "$WORK/surround.meta" "$WORK/surround-disc"
+"$WORK/bluray-remux-test" "$WORK/surround-disc" "$WORK/surround.mkv" all
+python3 - "$WORK/surround.mkv" <<'PY'
+import json,subprocess,sys
+data=json.loads(subprocess.check_output([
+    "ffprobe","-v","error","-show_streams","-show_chapters","-of","json",sys.argv[1]]))
+audio=[s for s in data["streams"] if s["codec_type"]=="audio"]
+assert len(audio)==1 and audio[0]["codec_name"]=="flac",audio
+assert audio[0]["sample_rate"]=="48000" and audio[0]["channels"]==6,audio
+assert audio[0].get("bits_per_raw_sample") in (24,"24"),audio
+assert len(data.get("chapters",[]))>=2,data.get("chapters")
+print("6-channel 24-bit LPCM -> FLAC:", audio[0]["channels"],"channels")
+PY
+ffmpeg -hide_banner -loglevel error -nostdin -y -i "$WORK/surround.wav" \
+  -map 0:a:0 -f s24le -c:a pcm_s24le "$WORK/surround-reference.pcm"
+ffmpeg -hide_banner -loglevel error -nostdin -y -i "$WORK/surround.mkv" \
+  -map 0:a:0 -f s24le -c:a pcm_s24le "$WORK/surround-result.pcm"
+cmp "$WORK/surround-reference.pcm" "$WORK/surround-result.pcm"
+echo "6-channel 24-bit LPCM channel layout and sample parity PASSED"
+
 echo "Blu-ray ISO/BDMV native media validation PASSED"
