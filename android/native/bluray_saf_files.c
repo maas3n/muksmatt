@@ -6,6 +6,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <jni.h>
 #include <libbluray/bluray.h>
+#include "bluray_mkv_core.h"
 #include <libbluray/filesystem.h>
 #include <errno.h>
 #include <limits.h>
@@ -303,4 +304,56 @@ cleanup:
     bd_close(bd);
     if (failure) io_error(env, failure);
     return output;
+}
+
+
+JNIEXPORT jstring JNICALL
+Java_io_github_maas3n_mattmux_BluraySafTreeBridge_nativeRemuxTree(
+    JNIEnv *env, jobject self, jobject provider, jint requested_playlist,
+    jint output_fd, jintArray selected_streams, jboolean include_chapters)
+{
+    (void)self;
+    if (!provider || output_fd < 0 || requested_playlist < -1 ||
+        requested_playlist > 99999)
+        return (*env)->NewStringUTF(env, "Invalid SAF Blu-ray folder remux arguments");
+    int count = selected_streams ? (*env)->GetArrayLength(env, selected_streams) : 0;
+    if (count < 0 || count > 256)
+        return (*env)->NewStringUTF(env, "Invalid Blu-ray stream selection");
+    jint *indices = selected_streams ? (*env)->GetIntArrayElements(env, selected_streams, NULL) : NULL;
+    if (selected_streams && !indices) return NULL;
+    jclass cls = (*env)->GetObjectClass(env, provider);
+    if (!cls) {
+        if (indices) (*env)->ReleaseIntArrayElements(env, selected_streams, indices, JNI_ABORT);
+        return NULL;
+    }
+    SafTree ctx = {
+        .env = env, .provider = provider,
+        .open_fd = (*env)->GetMethodID(env, cls, "nativeOpenFd", "(Ljava/lang/String;)I"),
+        .list_names = (*env)->GetMethodID(env, cls, "nativeListNames", "(Ljava/lang/String;)[Ljava/lang/String;"),
+    };
+    (*env)->DeleteLocalRef(env, cls);
+    char error[512] = "Could not open SAF Blu-ray BDMV folder";
+    int ret = -1;
+    BLURAY *bd = NULL;
+    if (!ctx.open_fd || !ctx.list_names) {
+        snprintf(error, sizeof(error), "Missing SAF BDMV native callbacks");
+        if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
+        goto cleanup;
+    }
+    bd = bd_init();
+    if (!bd || !bd_open_files(bd, &ctx, saf_open_dir, saf_open_file) || ctx.callback_error) {
+        snprintf(error, sizeof(error), "libbluray cannot open SAF BDMV folder");
+        goto cleanup;
+    }
+    ret = muksmatt_bd_mkv(bd, requested_playlist, output_fd,
+                           (const int *)indices, count,
+                           include_chapters ? 1 : 0, error, sizeof(error));
+    if (ctx.callback_error) {
+        ret = -1;
+        snprintf(error, sizeof(error), "SAF provider failed while reading Blu-ray BDMV");
+    }
+cleanup:
+    if (bd) bd_close(bd);
+    if (indices) (*env)->ReleaseIntArrayElements(env, selected_streams, indices, JNI_ABORT);
+    return ret < 0 ? (*env)->NewStringUTF(env, error) : NULL;
 }
