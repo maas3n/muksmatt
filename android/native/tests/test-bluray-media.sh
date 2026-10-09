@@ -8,8 +8,10 @@ VERSION=2.7.0
 curl -fLsS --retry 3 --proto '=https' --tlsv1.2 \
   "https://github.com/justdan96/tsMuxer/releases/download/$VERSION/tsMuxer-$VERSION-linux.zip" \
   -o "$WORK/tsmuxer.zip"
-echo "Fixture tool SHA-256 (pin after review):"
-sha256sum "$WORK/tsmuxer.zip"
+# Pin the exact Linux tsMuxer 2.7.0 release asset used for fixture generation.
+printf '%s  %s\n' \
+  'ceaaa181ab70e201685b1e45260d337d1cbdb0aba1408d4fbc47e232a7e4c987' \
+  "$WORK/tsmuxer.zip" | sha256sum -c --strict
 mkdir "$WORK/tools"
 unzip -q "$WORK/tsmuxer.zip" -d "$WORK/tools"
 TSMUXER="$(find "$WORK/tools" -type f \( -iname 'tsmuxer' -o -iname 'tsmuxer_linux' \) -print -quit)"
@@ -69,6 +71,20 @@ assert not any(s["codec_type"]=="video" for s in audio)
 assert any(s["codec_type"]=="video" for s in video)
 assert not any(s["codec_type"]=="audio" for s in video)
 PY
+
+# Compare all decoded video frames, not merely codec names. A Blu-ray remux
+# must preserve the original picture content when video is stream-copied.
+SOURCE_VIDEO_HASH="$(ffmpeg -hide_banner -loglevel error -nostdin -i "$WORK/video.m2v" \
+    -map 0:v:0 -pix_fmt yuv420p -f rawvideo - | sha256sum | awk '{print $1}')"
+for name in folder image video-only; do
+    OUTPUT_VIDEO_HASH="$(ffmpeg -hide_banner -loglevel error -nostdin -i "$WORK/$name.mkv" \
+        -map 0:v:0 -pix_fmt yuv420p -f rawvideo - | sha256sum | awk '{print $1}')"
+    echo "$name decoded video frames sha256: $OUTPUT_VIDEO_HASH"
+    test "$SOURCE_VIDEO_HASH" = "$OUTPUT_VIDEO_HASH" || {
+        echo "Blu-ray stream-copy changed video frames in $name" >&2; exit 1;
+    }
+done
+echo "Source decoded video frames sha256: $SOURCE_VIDEO_HASH"
 
 for name in folder image audio-only; do
   ffmpeg -hide_banner -loglevel error -nostdin -y -i "$WORK/$name.mkv" \
