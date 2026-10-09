@@ -35,6 +35,39 @@ internal class BluraySafTreeBridge(
         sampleBytes: Int,
     ): String
 
+    private external fun nativeRemuxTree(
+        provider: BluraySafTreeBridge,
+        playlist: Int,
+        outputFd: Int,
+        selectedStreamIndexes: IntArray?,
+        includeChapters: Boolean,
+    ): String?
+
+    /** Remux directly from the granted BDMV SAF tree to a new MKV document. */
+    fun remux(
+        outputTreeUri: Uri,
+        outputName: String,
+        playlist: Int? = null,
+        selectedStreamIndexes: IntArray? = null,
+        includeChapters: Boolean = true,
+    ): Uri {
+        require(playlist == null || playlist in 0..99999) { "Invalid Blu-ray playlist" }
+        require(selectedStreamIndexes == null ||
+            (selectedStreamIndexes.isNotEmpty() &&
+             selectedStreamIndexes.size <= 256 &&
+             selectedStreamIndexes.all { it >= 0 } &&
+             selectedStreamIndexes.toSet().size == selectedStreamIndexes.size)) {
+            "Invalid Blu-ray stream selection"
+        }
+        if (loadError != null) throw IOException("Native Blu-ray engine unavailable", loadError)
+        return BlurayMkvSafOutput.create(resolver, outputTreeUri, outputName) { fd ->
+            val error = nativeRemuxTree(
+                this, playlist ?: -1, fd, selectedStreamIndexes, includeChapters
+            )
+            if (error != null) throw IOException(error)
+        }
+    }
+
     init {
         require(DocumentsContract.isTreeUri(treeUri)) { "Select a Blu-ray folder using the SAF picker" }
         buildIndex()
