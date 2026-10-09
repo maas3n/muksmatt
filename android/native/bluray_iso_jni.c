@@ -155,3 +155,33 @@ Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeRemuxIso(
     if (indices) (*env)->ReleaseIntArrayElements(env, selected_streams, indices, JNI_ABORT);
     return ret < 0 ? (*env)->NewStringUTF(env, error) : NULL;
 }
+
+
+JNIEXPORT jstring JNICALL
+Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeProbeStreamsIso(
+    JNIEnv *env, jobject self, jint iso_fd, jint playlist)
+{
+    (void)self;
+    if (iso_fd < 0 || playlist < -1 || playlist > 99999) {
+        io_error(env, "Invalid Blu-ray ISO stream probe arguments");
+        return NULL;
+    }
+    BluraySafBlocks blocks = {.fd = -1};
+    BLURAY *bd = NULL;
+    char report[32768] = {0};
+    char error[512] = "Cannot open Blu-ray ISO";
+    int ret = -1;
+    if (bluray_saf_blocks_open(&blocks, iso_fd) >= 0) {
+        bd = bd_init();
+        if (bd && bd_open_stream(bd, &blocks, bluray_saf_read_blocks))
+            ret = muksmatt_bd_tracks(bd, playlist, report, sizeof(report),
+                                     error, sizeof(error));
+    }
+    if (bd) bd_close(bd);
+    bluray_saf_blocks_close(&blocks);
+    if (ret < 0) {
+        io_error(env, error);
+        return NULL;
+    }
+    return (*env)->NewStringUTF(env, report);
+}
