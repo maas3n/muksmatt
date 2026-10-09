@@ -60,6 +60,46 @@ internal class BlurayNativeIsoBridge(private val resolver: ContentResolver) {
         sampleBytes: Int,
     ): String
 
+    private external fun nativeRemuxIso(
+        sourceFd: Int, outputFd: Int, playlist: Int,
+        selectedStreamIndexes: IntArray?, includeChapters: Boolean,
+    ): String?
+
+    /**
+     * Direct Blu-ray ISO-to-MKV remux. All eligible streams are copied except
+     * Blu-ray LPCM, which must always be encoded losslessly to FLAC.
+     * Native playlist selection is independent of the existing DVD engine.
+     */
+    fun remux(
+        isoUri: Uri,
+        outputTreeUri: Uri,
+        outputName: String,
+        playlist: Int? = null,
+        selectedStreamIndexes: IntArray? = null,
+        includeChapters: Boolean = true,
+    ): Uri {
+        require(playlist == null || playlist in 0..99999) { "Invalid Blu-ray playlist" }
+        require(selectedStreamIndexes == null ||
+            (selectedStreamIndexes.isNotEmpty() &&
+             selectedStreamIndexes.size <= 256 &&
+             selectedStreamIndexes.all { it >= 0 } &&
+             selectedStreamIndexes.toSet().size == selectedStreamIndexes.size)) {
+            "Invalid Blu-ray stream selection"
+        }
+        if (!isAvailable) throw IOException(unavailableReason ?: "Blu-ray runtime unavailable")
+        val source = resolver.openFileDescriptor(isoUri, "r")
+            ?: throw IOException("SAF provider cannot open Blu-ray ISO")
+        return source.use {
+            BlurayMkvSafOutput.create(resolver, outputTreeUri, outputName) { outputFd ->
+                val error = nativeRemuxIso(
+                    it.fd, outputFd, playlist ?: -1,
+                    selectedStreamIndexes, includeChapters
+                )
+                if (error != null) throw IOException(error)
+            }
+        }
+    }
+
     val isAvailable: Boolean get() = loadError == null
     val unavailableReason: String?
         get() = loadError?.let { "Native Blu-ray reader unavailable: " + it.javaClass.simpleName }
