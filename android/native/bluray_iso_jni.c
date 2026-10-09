@@ -8,6 +8,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <jni.h>
 #include <libbluray/bluray.h>
+#include <libavformat/avformat.h>
 #include "bluray_saf_blocks.h"
 #include "bluray_mkv_core.h"
 #include <limits.h>
@@ -184,4 +185,50 @@ Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeProbeStreamsIso(
         return NULL;
     }
     return (*env)->NewStringUTF(env, report);
+}
+
+
+/* Independently verify the MKV's tracks and chapters using packaged FFmpeg.
+ * This is intentionally separate from the legacy AdvancedMergerNative bridge.
+ * Returns [MPEG2-video, FLAC-audio, other-streams, chapters] counts.
+ */
+JNIEXPORT jintArray JNICALL
+Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeInspectMkv(
+    JNIEnv *env, jobject self, jstring filename)
+{
+    (void)self;
+    if (!filename) {
+        io_error(env, "Missing MKV inspection path");
+        return NULL;
+    }
+    const char *path = (*env)->GetStringUTFChars(env, filename, NULL);
+    if (!path) return NULL;
+    AVFormatContext *input = NULL;
+    int status = avformat_open_input(&input, path, NULL, NULL);
+    (*env)->ReleaseStringUTFChars(env, filename, path);
+    if (status < 0) {
+        avformat_close_input(&input);
+        io_error(env, "FFmpeg could not open the completed Blu-ray MKV");
+        return NULL;
+    }
+    jint counts[4] = {0, 0, 0, 0};
+    for (unsigned i = 0; i < input->nb_streams; ++i) {
+        const AVCodecParameters *codec = input->streams[i]->codecpar;
+        if (codec->codec_type == AVMEDIA_TYPE_VIDEO && codec->codec_id == AV_CODEC_ID_MPEG2VIDEO)
+            ++counts[0];
+        else if (codec->codec_type == AVMEDIA_TYPE_AUDIO && codec->codec_id == AV_CODEC_ID_FLAC)
+            ++counts[1];
+        else
+            ++counts[2];
+    }
+    if (input->nb_chapters > INT_MAX) {
+        avformat_close_input(&input);
+        io_error(env, "Too many chapters in Blu-ray MKV");
+        return NULL;
+    }
+    counts[3] = (jint)input->nb_chapters;
+    avformat_close_input(&input);
+    jintArray result = (*env)->NewIntArray(env, 4);
+    if (result) (*env)->SetIntArrayRegion(env, result, 0, 4, counts);
+    return result;
 }
