@@ -36,13 +36,6 @@ try:
     print(adb("install", "-r", str(apk)))
     if args.test_apk:
         print(adb("install", "-r", "-t", str(args.test_apk.resolve())))
-        # Launch in the companion UID first so it can grant the real app access
-        # to provider-owned documents without exposing production test hooks.
-        prepared = adb("shell", "am", "start", "-W", "-n",
-                       package + ".test/io.github.maas3n.mattmux.PrepareBlurayActivity")
-        (logs / "prepare-fixtures.txt").write_text(prepared)
-        if "Status: ok" not in prepared or "Error:" in prepared:
-            raise RuntimeError("Unable to prepare companion SAF fixtures: " + prepared)
     adb("shell", "am", "force-stop", package)
     # Some API 26 images refuse log clearing. Preserve their logs instead;
     # successful installation, launch, survival and tab navigation are required.

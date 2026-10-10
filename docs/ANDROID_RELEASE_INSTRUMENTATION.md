@@ -10,6 +10,10 @@ signing identity, targets `io.github.maas3n.muksmatt`, and carries the authored
 Blu-ray ISO/BDMV assets and DocumentsProvider. The shared smoke test exercises
 the installed application's native engine through real cross-UID SAF grants.
 Fixture preparation is limited to callers with the same signing certificate.
+The instrumentation launches the companion bootstrap after Android's target
+process restart, which clears transient URI grants. Only that bootstrap launch
+uses UiAutomation's shell command; the test does not adopt shell permissions.
+Provider calls and media operations run under the production application's UID.
 
 `verify-startup-apks.py` checks matching certificates, instrumentation target,
 fixture presence and isolation from the production APK before emulator launch.

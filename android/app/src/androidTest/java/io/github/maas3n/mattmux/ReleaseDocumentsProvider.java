@@ -26,6 +26,7 @@ public final class ReleaseDocumentsProvider extends DocumentsProvider {
     @Override public boolean onCreate() {
         try {
             root = new File(getContext().getCacheDir(), "dvd-saf-test").getCanonicalFile();
+            android.util.Log.i("muKsMaTTBlurayTest", "Companion provider uid=" + Process.myUid());
             return true;
         } catch (IOException e) { throw new IllegalStateException(e); }
     }

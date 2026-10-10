@@ -3,6 +3,8 @@ package io.github.maas3n.mattmux
 import android.app.Activity
 import android.app.Instrumentation
 import android.os.Bundle
+import android.os.ParcelFileDescriptor
+import android.os.Process
 import android.provider.DocumentsContract
 import android.util.Log
 import java.io.IOException
@@ -65,6 +67,21 @@ class BluraySmokeInstrumentation : Instrumentation() {
         val result = Bundle()
         var status = Activity.RESULT_CANCELED
         try {
+            // am instrument force-stops the target and clears its transient URI
+            // grants. Bootstrap only after that restart, in the companion UID.
+            if (context.packageName != targetContext.packageName) {
+                val command = "am start -W -n " + context.packageName +
+                    "/io.github.maas3n.mattmux.PrepareBlurayActivity"
+                val prepared = ParcelFileDescriptor.AutoCloseInputStream(
+                    uiAutomation.executeShellCommand(command)
+                ).bufferedReader().use { it.readText() }
+                check("Status: ok" in prepared && "Error:" !in prepared) {
+                    "Unable to prepare companion SAF fixtures: $prepared"
+                }
+            }
+            // This resolver call and all media I/O run with the application's
+            // UID; no shell permissions are adopted for the SAF test.
+            Log.i("muKsMaTTBlurayTest", "Instrumented application uid=${Process.myUid()}")
             resolver.call(providerUri, "prepare-bluray", null, null)
             val source = DocumentsContract.buildTreeDocumentUri(authority, "bluray-disc")
             val destination = DocumentsContract.buildTreeDocumentUri(authority, "bluray-output")
