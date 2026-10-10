@@ -616,7 +616,13 @@ jobs:
             -PMATTRIP_VERSION_NAME='${{ needs.metadata.outputs.version }}' \
             -PMATTRIP_VERSION_CODE='${{ needs.metadata.outputs.android_version_code }}' \
             -PMATTRIP_REQUIRE_SIGNING=true \
-            :app:testDebugUnitTest :app:lintRelease :app:assembleRelease :app:assembleReleaseAndroidTest
+            :app:testDebugUnitTest :app:lintRelease :app:assembleRelease
+          gradle -p android \
+            -PMATTRIP_VERSION_NAME='${{ needs.metadata.outputs.version }}' \
+            -PMATTRIP_VERSION_CODE='${{ needs.metadata.outputs.android_version_code }}' \
+            -PMATTRIP_REQUIRE_SIGNING=true \
+            -PMUKSMATT_TEST_BUILD_TYPE=release \
+            :app:assembleReleaseAndroidTest
 
       - name: Verify version and bundled native libraries
         shell: bash

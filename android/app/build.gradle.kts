@@ -40,7 +40,7 @@ android {
 
     // Select release only for the separate CI instrumentation APK. Production
     // source sets and debuggability remain unchanged.
-    testBuildType = "release"
+    testBuildType = providers.gradleProperty("MUKSMATT_TEST_BUILD_TYPE").orElse("debug").get()
     sourceSets.getByName("androidTest").java.srcDir("src/debug/java")
 
     defaultConfig {

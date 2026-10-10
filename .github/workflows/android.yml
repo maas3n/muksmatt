@@ -185,6 +185,7 @@ jobs:
             -PMATTRIP_SIGNING_KEY_ALIAS=ci-startup \
             -PMATTRIP_SIGNING_KEY_PASSWORD=ci-startup-password \
             -PMATTRIP_REQUIRE_SIGNING=true \
+            -PMUKSMATT_TEST_BUILD_TYPE=release \
             :app:assembleRelease :app:assembleReleaseAndroidTest
           python3 android/scripts/verify-startup-apks.py \
             android/app/build/outputs/apk/release \
