@@ -723,35 +723,17 @@ jobs:
             exit 1
           fi
 
-      - name: Publish one cross-platform numbered GitHub Release
+      - name: Stage, verify and publish a complete numbered GitHub Release
         if: ${{ needs.metadata.outputs.mode == 'release' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag='${{ needs.metadata.outputs.tag }}'
-          version='${{ needs.metadata.outputs.version }}'
-          prerelease='${{ needs.metadata.outputs.prerelease }}'
-
-          args=(
-            release create "$tag"
-            release-assets/*
-            --repo "$GITHUB_REPOSITORY"
-            --verify-tag
-            --target "$(git rev-parse HEAD)"
-            --title "muKsMaTT $version"
-            --latest=false
-          )
-          notes_file="docs/releases/${tag}.md"
-          if [[ -s "$notes_file" ]]; then
-            args+=(--notes-file "$notes_file")
-          else
-            args+=(--generate-notes)
-          fi
-          if [[ "$prerelease" == "true" ]]; then
-            args+=(--prerelease)
-          fi
-          gh "${args[@]}"
+          python3 scripts/publish_numbered.py \
+            release-assets \
+            '${{ needs.metadata.outputs.tag }}' \
+            '${{ needs.metadata.outputs.version }}' \
+            '${{ needs.metadata.outputs.prerelease }}'
 
       - name: Add stable filenames to the complete main snapshot
         if: ${{ needs.metadata.outputs.mode == 'main' }}
