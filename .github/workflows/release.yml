@@ -14,6 +14,11 @@ on:
         required: true
         type: boolean
         default: false
+      build_only:
+        description: 'Build and validate all release packages WITHOUT creating or publishing any GitHub Release.'
+        required: false
+        type: boolean
+        default: false
 
 # Serialize channels and never cancel a publisher midway through publication.
 concurrency:
@@ -29,8 +34,9 @@ env:
 
 jobs:
   metadata:
-    # Both approvals are required; skipped metadata skips every dependent build/publish job.
-    if: ${{ inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}
+    # A build-only rehearsal may package everything but can never publish.
+    # Normal publication requires both separate approvals.
+    if: ${{ inputs.build_only == true || (inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true') }}
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.meta.outputs.mode }}
@@ -676,6 +682,8 @@ jobs:
 
   publish:
     needs: [metadata, windows, linux, android, android-startup]
+    # Even when build-only packages succeed, public publishing is prohibited.
+    if: ${{ inputs.build_only != true && inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
