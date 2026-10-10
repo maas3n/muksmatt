@@ -47,7 +47,17 @@ Back up both private keystores and their passwords securely. The **app-signing k
 
 ## GitHub configuration
 
-Use protected GitHub Environments so the two private keys are scoped separately.
+Use protected GitHub Environments so the two private keys are scoped separately. For the two keys generated on October 10, 2026, run the setup script from the existing local clone:
+
+```bash
+cd "$HOME/muksmatt-signing-setup"
+git pull --ff-only
+bash scripts/configure-android-signing-github.sh
+```
+
+It verifies the public certificate fingerprints, prompts for the four passwords without echo, creates missing GitHub environments, uploads all eight GitHub environment secrets and two repository certificate-pin variables via GitHub CLI, and dispatches only the **Android signing self-test**. No secrets are added to Git or sent to ChatGPT. It deliberately does **not** enable or dispatch the public Unified release workflow. The currently supported key directory is `$HOME/muksmatt-android-signing`.
+
+The setup script requires `gh`, `openssl`, and `sha256sum` on the local machine and sufficient GitHub permission to manage repository environments and Actions secrets.
 
 ### Environment: `android-release`
 
@@ -137,8 +147,7 @@ The unified workflow checks the `android-release` signing settings before any
 platform build. If it reports missing settings, restore the **designated long-lived**
 app-signing keystore and passwords listed above, and configure the matching
 `ANDROID_APP_SIGNING_CERT_SHA256` variable. Do not generate a replacement key
-for an already distributed app. Then dispatch **Unified release** on `main`
-with an empty tag. The workflow never publishes an unsigned fallback.
+for an already distributed app. **Do not dispatch Unified release as part of signing setup.** After separate publication authorization, the repository opt-in variable `MUKSMATT_RELEASE_ENABLED=true` and manual `confirm_publish=true` are both required to publish. The workflow never publishes an unsigned fallback.
 
 Both numbered releases and main snapshots now use Android version code
 `1000000000 + GITHUB_RUN_NUMBER` from the **same Unified release workflow**.
