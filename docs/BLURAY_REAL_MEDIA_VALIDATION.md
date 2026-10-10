@@ -31,7 +31,7 @@ For real-disc qualification, collect *non-sensitive* evidence: source type, play
 
 - A successful emulator SAF remux of both self-authored BDMV and ISO is a gate for the Android native remux implementation
 - Verify no DVD remux/demux regression, no changes to DVD-specific FFmpeg input policy, and no release-signing or publishing regression
-- Keep PR #17 draft until documented high-priority device and actual-media coverage is sufficient for its intended scope
+- PR #17 has already merged as a development foundation; keep physical-device and actual-media compatibility claims pending until dedicated evidence is collected
 - AACS/BD+ and real USB drives are follow-on capabilities until validated; do not advertise them as tested or usable merely because libbluray is bundled
 
 ## Desktop CLI authored-media integration gate
