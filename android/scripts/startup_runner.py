@@ -119,13 +119,14 @@ def wait_ready(expected_page_size, diagnostics=None):
     raise RuntimeError('Emulator framework did not become ready within 150 seconds')
 
 
-def run_startup(apk, logs, page_size):
+def run_startup(apk, logs, page_size, test_apk=None):
     for attempt in (1, 2):
         directory = logs / f'attempt-{attempt}'
         directory.mkdir(parents=True, exist_ok=True)
         before = wait_ready(page_size, directory / 'readiness.txt')
         result = subprocess.run(
-            [sys.executable, str(Path(__file__).with_name('test-startup.py')), str(apk), str(directory)],
+            [sys.executable, str(Path(__file__).with_name('test-startup.py')), str(apk), str(directory)]
+            + (["--test-apk", str(test_apk)] if test_apk is not None else []),
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         print(result.stdout, flush=True)
         (directory / 'test-output.txt').write_text(result.stdout)
@@ -150,5 +151,6 @@ if __name__ == '__main__':
     parser.add_argument('apk', type=Path)
     parser.add_argument('logs', type=Path)
     parser.add_argument('--page-size', type=int, required=True)
+    parser.add_argument('--test-apk', type=Path)
     args = parser.parse_args()
-    run_startup(args.apk, args.logs, args.page_size)
+    run_startup(args.apk, args.logs, args.page_size, args.test_apk)

@@ -6,6 +6,10 @@ on:
       artifact:
         required: true
         type: string
+      test-artifact:
+        required: false
+        type: string
+        default: ''
       source-ref:
         required: false
         type: string
@@ -39,6 +43,25 @@ jobs:
         with:
           name: ${{ inputs.artifact }}
           path: startup-apk
+      - uses: actions/download-artifact@v4
+        if: ${{ inputs.test-artifact != '' }}
+        with:
+          name: ${{ inputs.test-artifact }}
+          path: startup-test-apk
+      - name: Resolve application and optional instrumentation APKs
+        shell: bash
+        env:
+          TEST_ARTIFACT: ${{ inputs.test-artifact }}
+        run: |
+          set -euo pipefail
+          mapfile -t apps < <(find startup-apk -name '*.apk' -type f)
+          test "${#apps[@]}" -eq 1
+          echo "STARTUP_APK=${apps[0]}" >> "$GITHUB_ENV"
+          if [[ -n "$TEST_ARTIFACT" ]]; then
+            mapfile -t tests < <(find startup-test-apk -name '*.apk' -type f)
+            test "${#tests[@]}" -eq 1
+            echo "STARTUP_TEST_APK=${tests[0]}" >> "$GITHUB_ENV"
+          fi
       - name: Test startup UI recognition
         run: python3 -m unittest discover -s android/scripts -p 'test_startup*.py' -v
       - name: Enable emulator acceleration
@@ -55,7 +78,7 @@ jobs:
           profile: pixel_2
           ram-size: 4096M
           heap-size: 512M
-          script: python3 android/scripts/startup_runner.py "$(find startup-apk -name '*.apk' -print -quit)" startup-logs --page-size ${{ matrix.page-size }}
+          script: python3 android/scripts/startup_runner.py "$STARTUP_APK" startup-logs --page-size ${{ matrix.page-size }} ${STARTUP_TEST_APK:+--test-apk "$STARTUP_TEST_APK"}
       - name: Preserve startup diagnostics
         if: always()
         uses: actions/upload-artifact@v4

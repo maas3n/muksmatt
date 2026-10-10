@@ -3,46 +3,53 @@ package io.github.maas3n.mattmux
 import android.app.Activity
 import android.app.Instrumentation
 import android.os.Bundle
+import android.os.ParcelFileDescriptor
+import android.os.Process
 import android.provider.DocumentsContract
 import android.util.Log
-import java.io.File
 import java.io.IOException
+import java.io.File
 
 /**
- * Debug-only Android device integration using genuine SAF callbacks.
+ * CI-only Android device integration using genuine SAF callbacks.
  * Unencrypted, self-authored Blu-ray fixtures; NOT a physical-disc test.
  */
 class BluraySmokeInstrumentation : Instrumentation() {
-    private val authority = "io.github.maas3n.muksmatt.demux-test"
+    private val authority get() = context.packageName + ".demux-test"
+    private val resolver get() = targetContext.contentResolver
+    private val providerUri get() = android.net.Uri.parse("content://$authority")
 
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
         start()
     }
 
-    private fun unpack(source: String, target: File) {
-        val names = targetContext.assets.list(source).orEmpty()
-        if (names.isEmpty()) {
-            target.parentFile?.mkdirs()
-            targetContext.assets.open(source).use { data ->
-                target.outputStream().use { output -> data.copyTo(output) }
-            }
-        } else {
-            check(target.mkdirs() || target.isDirectory)
-            names.forEach { name -> unpack("$source/$name", File(target, name)) }
+    private fun outputNames(): List<String> {
+        val tree = DocumentsContract.buildTreeDocumentUri(authority, "bluray-output")
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, "bluray-output")
+        return requireNotNull(resolver.query(children,
+            arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)).use { cursor ->
+            buildList { while (cursor.moveToNext()) add(cursor.getString(0)) }
         }
     }
 
     private fun ensureMkv(
-        safRoot: File, outputUri: android.net.Uri, filename: String,
+        outputUri: android.net.Uri, filename: String,
         wantVideo: Boolean, wantAudio: Boolean, chapters: Boolean,
     ) {
-        val id = DocumentsContract.getDocumentId(outputUri)
-        val output = File(safRoot, id)
-        check(output.name == filename && output.isFile && output.length() > 0) {
-            "Blu-ray SAF did not publish expected MKV: $output"
+        check(DocumentsContract.getDocumentId(outputUri).substringAfterLast('/') == filename)
+        // Validation-only copy of the completed output: reopening a provider's
+        // private inode via /proc/self/fd may fail DAC/SELinux across UIDs.
+        val inspection = File.createTempFile("bluray-verify-", ".mkv", targetContext.cacheDir)
+        val tracks = try {
+            requireNotNull(resolver.openInputStream(outputUri)).use { input ->
+                inspection.outputStream().use { input.copyTo(it) }
+            }
+            check(inspection.length() > 0) { "Empty Blu-ray SAF output: $filename" }
+            BlurayNativeIsoBridge(resolver).inspectMkv(inspection.absolutePath)
+        } finally {
+            check(inspection.delete()) { "Cannot clean verification copy" }
         }
-        val tracks = BlurayNativeIsoBridge(targetContext.contentResolver).inspectMkv(output.absolutePath)
         check(tracks.mpeg2Video == (if (wantVideo) 1 else 0) &&
               tracks.flacAudio == (if (wantAudio) 1 else 0) && tracks.other == 0) {
             "Wrong Blu-ray output streams in $filename: $tracks"
@@ -50,27 +57,60 @@ class BluraySmokeInstrumentation : Instrumentation() {
         check(tracks.chapters == (if (chapters) 2 else 0)) {
             "Blu-ray chapter selection lost for $filename: $tracks"
         }
-        check(safRoot.walkTopDown().none {
-            it.isFile && (it.name.contains(".partial-") || it.name == "source.mkv")
-        }) { "Blu-ray created or leaked an intermediate MKV" }
-        Log.i("muKsMaTTBlurayTest",
-            "Device SAF MKV $filename: bytes=${output.length()} tracks=$tracks")
+        check(outputNames().none { it.contains(".partial-") || it == "source.mkv" }) {
+            "Blu-ray created or leaked an intermediate MKV"
+        }
+        Log.i("muKsMaTTBlurayTest", "Device SAF MKV $filename: tracks=$tracks")
     }
 
     override fun onStart() {
         val result = Bundle()
-        val safRoot = File(targetContext.cacheDir, "dvd-saf-test")
+        var status = Activity.RESULT_CANCELED
         try {
-            check(safRoot.deleteRecursively())
-            check(safRoot.mkdirs())
-            unpack("bluray-smoke/BDMV", File(safRoot, "bluray-disc/BDMV"))
-            if (!targetContext.assets.list("bluray-smoke/CERTIFICATE").isNullOrEmpty()) {
-                unpack("bluray-smoke/CERTIFICATE", File(safRoot, "bluray-disc/CERTIFICATE"))
+            // Instrumentation restarts the target and revokes transient SAF
+            // grants. The companion must grant them again after that restart.
+            // API 26 can leave the "am start -W" stdout pipe open after its
+            // short-lived activity exits. Do not wait for process/pipe EOF.
+            if (context.packageName != targetContext.packageName) {
+                val command = "am start -n " + context.packageName +
+                    "/io.github.maas3n.mattmux.PrepareBlurayActivity"
+                val launched = ParcelFileDescriptor.AutoCloseInputStream(
+                    uiAutomation.executeShellCommand(command)
+                ).bufferedReader().use { it.readLine().orEmpty() }
+                check(launched.startsWith("Starting:") ||
+                      launched.startsWith("Warning: Activity not started")) {
+                    "Unable to launch companion SAF fixture preparation: $launched"
+                }
+
+                // A successful ActivityManager start is not proof that the
+                // separate provider finished unpacking its authored fixture or
+                // granted the production UID access. Check real SAF access.
+                val sample = DocumentsContract.buildDocumentUri(authority, "movie.iso")
+                val deadline = android.os.SystemClock.elapsedRealtime() + 45_000L
+                var accessible = false
+                var lastError = "Fixture grant or data not yet ready"
+                while (!accessible && android.os.SystemClock.elapsedRealtime() < deadline) {
+                    try {
+                        accessible = resolver.query(sample,
+                            arrayOf(DocumentsContract.Document.COLUMN_SIZE),
+                            null, null, null)?.use {
+                            it.moveToFirst() && it.getLong(0) > 0L
+                        } == true
+                    } catch (failure: SecurityException) {
+                        lastError = failure.toString()
+                    } catch (failure: IllegalArgumentException) {
+                        lastError = failure.toString()
+                    }
+                    if (!accessible) Thread.sleep(250)
+                }
+                check(accessible) {
+                    "Companion SAF fixture was not readable after launch: $lastError"
+                }
             }
-            unpack("bluray-smoke/movie.iso", File(safRoot, "movie.iso"))
-            check(File(safRoot, "bluray-disc/BDMV/PLAYLIST").isDirectory)
-            check(File(safRoot, "bluray-disc/BDMV/STREAM").isDirectory)
-            File(safRoot, "bluray-output").mkdirs()
+            // This resolver call and all media I/O run with the application's
+            // UID; no shell permissions are adopted for the SAF test.
+            Log.i("muKsMaTTBlurayTest", "Instrumented application uid=${Process.myUid()}")
+            resolver.call(providerUri, "prepare-bluray", null, null)
             val source = DocumentsContract.buildTreeDocumentUri(authority, "bluray-disc")
             val destination = DocumentsContract.buildTreeDocumentUri(authority, "bluray-output")
             val isoUri = DocumentsContract.buildDocumentUri(authority, "movie.iso")
@@ -86,18 +126,18 @@ class BluraySmokeInstrumentation : Instrumentation() {
             }
             check(tree.inspect(sampleBytes = 6144).bytesRead > 0)
             check(iso.inspect(isoUri, sampleBytes = 6144).bytesRead > 0)
-            ensureMkv(safRoot, tree.remux(destination, "folder-full.mkv"),
+            ensureMkv(tree.remux(destination, "folder-full.mkv"),
                       "folder-full.mkv", true, true, true)
-            ensureMkv(safRoot, iso.remux(isoUri, destination, "iso-full.mkv"),
+            ensureMkv(iso.remux(isoUri, destination, "iso-full.mkv"),
                       "iso-full.mkv", true, true, true)
             val audio = folderTracks.filter { it.type == "audio" }.map { it.index }.toIntArray()
             val video = folderTracks.filter { it.type == "video" }.map { it.index }.toIntArray()
             check(audio.isNotEmpty() && video.isNotEmpty())
-            ensureMkv(safRoot,
+            ensureMkv(
                 tree.remux(destination, "audio-only.mkv", selectedStreamIndexes = audio,
                            includeChapters = false),
                 "audio-only.mkv", false, true, false)
-            ensureMkv(safRoot,
+            ensureMkv(
                 iso.remux(isoUri, destination, "video-only.mkv",
                           selectedStreamIndexes = video, includeChapters = false),
                 "video-only.mkv", true, false, false)
@@ -111,18 +151,21 @@ class BluraySmokeInstrumentation : Instrumentation() {
             } catch (expected: IOException) {
                 check(expected.message == "Injected output failure") { expected.toString() }
             }
-            check(!File(safRoot, "bluray-output/abort.mkv").exists())
-            check(File(safRoot, "bluray-output").listFiles().orEmpty().none {
-                it.name.contains(".partial-")
-            }) { "Failed Blu-ray SAF remux left partial output" }
+            check(outputNames().toSet() == setOf("folder-full.mkv", "iso-full.mkv",
+                "audio-only.mkv", "video-only.mkv")) { "Failed remux left unexpected output" }
             result.putString("stream", "MUKSMATT_BLURAY_SAF_PASS")
-            finish(Activity.RESULT_OK, result)
+            status = Activity.RESULT_OK
         } catch (failure: Throwable) {
             Log.e("muKsMaTTBlurayTest", "Android Blu-ray device test failed", failure)
             result.putString("stream", failure.stackTraceToString())
-            finish(Activity.RESULT_CANCELED, result)
         } finally {
-            safRoot.deleteRecursively()
+            try {
+                resolver.call(providerUri, "cleanup-bluray", null, null)
+            } catch (failure: Throwable) {
+                status = Activity.RESULT_CANCELED
+                result.putString("stream", "SAF fixture cleanup failed: ${failure.stackTraceToString()}")
+            }
         }
+        finish(status, result)
     }
 }
