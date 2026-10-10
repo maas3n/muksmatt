@@ -102,6 +102,16 @@ jobs:
             version="${tag#v}"
             windows_numeric_version="${major}.${minor}.${patch}.0"
             git rev-parse --verify "refs/tags/${tag}^{commit}" >/dev/null
+
+            # Preview releases require reviewed tester-facing limitations,
+            # not automatically generated notes that may imply validation.
+            if [[ "$prerelease" == "true" ]]; then
+              notes_file="docs/releases/${tag}.md"
+              test -s "$notes_file" || {
+                echo "Missing required prerelease notes: $notes_file" >&2
+                exit 1
+              }
+            fi
           fi
 
           android_version_code="$(python3 scripts/release_version.py)"
@@ -730,9 +740,14 @@ jobs:
             --verify-tag
             --target "$(git rev-parse HEAD)"
             --title "muKsMaTT $version"
-            --generate-notes
             --latest=false
           )
+          notes_file="docs/releases/${tag}.md"
+          if [[ -s "$notes_file" ]]; then
+            args+=(--notes-file "$notes_file")
+          else
+            args+=(--generate-notes)
+          fi
           if [[ "$prerelease" == "true" ]]; then
             args+=(--prerelease)
           fi
