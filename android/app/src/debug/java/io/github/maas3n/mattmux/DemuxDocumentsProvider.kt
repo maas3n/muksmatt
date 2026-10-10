@@ -23,8 +23,9 @@ class DemuxDocumentsProvider : DocumentsProvider() {
     // Fixtures live in the provider APK's own sandbox. A separate test APK has
     // a different UID from the signed application under instrumentation.
     override fun call(method: String, arg: String?, extras: Bundle?): Bundle? {
-        if (method != "prepare-bluray" && method != "cleanup-bluray") {
-            return super.call(method, arg, extras)
+        val inherited = super.call(method, arg, extras)
+        if (inherited != null || (method != "prepare-bluray" && method != "cleanup-bluray")) {
+            return inherited
         }
         val ctx = requireNotNull(context)
         check(ctx.packageManager.checkSignatures(Binder.getCallingUid(), Process.myUid()) ==

@@ -21,9 +21,9 @@ def command(*args):
 def verify(app, test, tools):
     manifests = [command(tools / 'aapt', 'dump', 'xmltree', apk, 'AndroidManifest.xml')
                  for apk in (app, test)]
-    if 'E: instrumentation' in manifests[0] or 'DemuxDocumentsProvider' in manifests[0]:
+    if 'E: instrumentation' in manifests[0] or 'DocumentsProvider' in manifests[0]:
         raise RuntimeError('CI instrumentation/provider leaked into the production APK')
-    if 'BluraySmokeInstrumentation' not in manifests[1] or 'DemuxDocumentsProvider' not in manifests[1]:
+    if 'BluraySmokeInstrumentation' not in manifests[1] or 'ReleaseDocumentsProvider' not in manifests[1]:
         raise RuntimeError('Test APK is missing required instrumentation/provider')
     if 'io.github.maas3n.muksmatt.test' not in manifests[1]:
         raise RuntimeError('Wrong test APK identity')

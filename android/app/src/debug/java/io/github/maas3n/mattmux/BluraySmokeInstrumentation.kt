@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.provider.DocumentsContract
 import android.util.Log
 import java.io.IOException
+import java.io.File
 
 /**
  * CI-only Android device integration using genuine SAF callbacks.
@@ -35,9 +36,17 @@ class BluraySmokeInstrumentation : Instrumentation() {
         wantVideo: Boolean, wantAudio: Boolean, chapters: Boolean,
     ) {
         check(DocumentsContract.getDocumentId(outputUri).substringAfterLast('/') == filename)
-        val tracks = requireNotNull(resolver.openFileDescriptor(outputUri, "r")).use { fd ->
-            check(fd.statSize > 0) { "Empty Blu-ray SAF output: $filename" }
-            BlurayNativeIsoBridge(resolver).inspectMkv("/proc/self/fd/${fd.fd}")
+        // Validation-only copy of the completed output: reopening a provider's
+        // private inode via /proc/self/fd may fail DAC/SELinux across UIDs.
+        val inspection = File.createTempFile("bluray-verify-", ".mkv", targetContext.cacheDir)
+        val tracks = try {
+            requireNotNull(resolver.openInputStream(outputUri)).use { input ->
+                inspection.outputStream().use { input.copyTo(it) }
+            }
+            check(inspection.length() > 0) { "Empty Blu-ray SAF output: $filename" }
+            BlurayNativeIsoBridge(resolver).inspectMkv(inspection.absolutePath)
+        } finally {
+            check(inspection.delete()) { "Cannot clean verification copy" }
         }
         check(tracks.mpeg2Video == (if (wantVideo) 1 else 0) &&
               tracks.flacAudio == (if (wantAudio) 1 else 0) && tracks.other == 0) {
