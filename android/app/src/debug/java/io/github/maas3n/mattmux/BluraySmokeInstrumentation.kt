@@ -67,16 +67,44 @@ class BluraySmokeInstrumentation : Instrumentation() {
         val result = Bundle()
         var status = Activity.RESULT_CANCELED
         try {
-            // am instrument force-stops the target and clears its transient URI
-            // grants. Bootstrap only after that restart, in the companion UID.
+            // Instrumentation restarts the target and revokes transient SAF
+            // grants. The companion must grant them again after that restart.
+            // API 26 can leave the "am start -W" stdout pipe open after its
+            // short-lived activity exits. Do not wait for process/pipe EOF.
             if (context.packageName != targetContext.packageName) {
-                val command = "am start -W -n " + context.packageName +
+                val command = "am start -n " + context.packageName +
                     "/io.github.maas3n.mattmux.PrepareBlurayActivity"
-                val prepared = ParcelFileDescriptor.AutoCloseInputStream(
+                val launched = ParcelFileDescriptor.AutoCloseInputStream(
                     uiAutomation.executeShellCommand(command)
-                ).bufferedReader().use { it.readText() }
-                check("Status: ok" in prepared && "Error:" !in prepared) {
-                    "Unable to prepare companion SAF fixtures: $prepared"
+                ).bufferedReader().use { it.readLine().orEmpty() }
+                check(launched.startsWith("Starting:") ||
+                      launched.startsWith("Warning: Activity not started")) {
+                    "Unable to launch companion SAF fixture preparation: $launched"
+                }
+
+                // A successful ActivityManager start is not proof that the
+                // separate provider finished unpacking its authored fixture or
+                // granted the production UID access. Check real SAF access.
+                val sample = DocumentsContract.buildDocumentUri(authority, "movie.iso")
+                val deadline = android.os.SystemClock.elapsedRealtime() + 45_000L
+                var accessible = false
+                var lastError = "Fixture grant or data not yet ready"
+                while (!accessible && android.os.SystemClock.elapsedRealtime() < deadline) {
+                    try {
+                        accessible = resolver.query(sample,
+                            arrayOf(DocumentsContract.Document.COLUMN_SIZE),
+                            null, null, null)?.use {
+                            it.moveToFirst() && it.getLong(0) > 0L
+                        } == true
+                    } catch (failure: SecurityException) {
+                        lastError = failure.toString()
+                    } catch (failure: IllegalArgumentException) {
+                        lastError = failure.toString()
+                    }
+                    if (!accessible) Thread.sleep(250)
+                }
+                check(accessible) {
+                    "Companion SAF fixture was not readable after launch: $lastError"
                 }
             }
             // This resolver call and all media I/O run with the application's
