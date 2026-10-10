@@ -33,3 +33,31 @@ For real-disc qualification, collect *non-sensitive* evidence: source type, play
 - Verify no DVD remux/demux regression, no changes to DVD-specific FFmpeg input policy, and no release-signing or publishing regression
 - Keep PR #17 draft until documented high-priority device and actual-media coverage is sufficient for its intended scope
 - AACS/BD+ and real USB drives are follow-on capabilities until validated; do not advertise them as tested or usable merely because libbluray is bundled
+
+## Desktop CLI authored-media integration gate
+
+The Linux workflow now executes `scripts/test-bluray-desktop-cli.sh` after building the actual Go CLI and native libbluray navigator. It authors an unencrypted six-second BDMV folder and a UDF Blu-ray ISO using a checksum-pinned tsMuxer release, then exercises the **public** `muksmatt-cli bluray scan` and `bluray remux` entry points. Its coverage is distinct from the Android native C-core harness:
+
+- scan folder and ISO independently, discover the longest playlist through Go and native libbluray respectively;
+- remux both inputs to MKV, including video+audio, then perform explicit video-only and audio-only selections;
+- verify MPEG-2 stream copy, mandatory 24-bit LPCM-to-FLAC output, chapter preservation and `--no-chapters`;
+- hash all decoded source and output video frames and decoded 24-bit PCM samples, requiring exact parity;
+- verify an invalid stream selection fails without publishing an MKV.
+
+The test is *not* genuine commercial disc, drive, Windows execution, AACS/BD+, or Android/ChromeOS device evidence. Record its CI run result separately from the real-media qualifications below; do not mark this gate passed until its workflow completes successfully.
+
+## Real-disc operator validation (still pending)
+
+Use a legally accessible, non-sensitive test disc/backup and run with the installed **muKsMaTT** CLI and its bundled libbluray-enabled FFmpeg pair. Do not upload any copyrighted media or decryption material. For a local BDMV folder, ISO, or an accessible desktop optical drive, use:
+
+```text
+muksmatt-cli bluray scan SOURCE
+muksmatt-cli bluray remux --output VALIDATION.mkv SOURCE
+ffprobe -v error -show_entries stream=index,codec_type,codec_name,channels,sample_rate -show_chapters -of json VALIDATION.mkv
+```
+
+For Windows, replace the executable name with `muksmatt-cli.exe` and supply a valid Windows source path. Select another playlist explicitly with `--playlist 00800` only if that playlist appears in the scan. Do not run extraction with a non-writable path or to an existing file, and ensure ample free disk space. Visual playback and A/V sync still need a human/device check, especially at branching points and chapter transitions.
+
+Save a private, sanitized report: OS/architecture; source class (folder/ISO/physical); reader model; playlist IDs/durations; selected stream indexes/codecs; input-versus-output stream mapping; chapter counts and timing; decoded hashes of owned test streams; playback and A/V sync observations; any AACS/BD+ protection *handled* or *unhandled* status. Remove disc titles, personally identifying paths, decrypted media, keys and passwords before sharing logs. Compare output to the original source rather than assuming that codec names alone establish lossless parity.
+
+A genuine **physical-drive** validation remains outstanding on Windows and Linux; Android USB optical transport remains a separate, explicitly unverified milestone. The existing authored-fixture tests cannot clear those gates.
