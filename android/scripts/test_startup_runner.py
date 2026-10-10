@@ -106,6 +106,17 @@ class RecoveryTests(unittest.TestCase):
         self.assertEqual(sum('same.apk' in call for call in calls), 2)
         self.assertTrue((Path(directory) / 'attempt-1/test-output.txt').is_file())
 
+    def test_separate_test_apk_is_forwarded_on_every_attempt(self):
+        directory, calls, execute = self.exercise([(1, CRASH), (0, 'all tests passed')])
+        with patch.object(runner, 'wait_ready', side_effect=['557', '600']), \
+             patch.object(runner, 'system_pid', side_effect=['890', '600']), \
+             patch.object(runner, 'adb'), patch.object(runner.subprocess, 'run', side_effect=execute):
+            runner.run_startup(Path('release.apk'), Path(directory), 4096, Path('test.apk'))
+        tests = [call for call in calls if 'release.apk' in call]
+        self.assertEqual(len(tests), 2)
+        for call in tests:
+            self.assertEqual(call[-2:], ['--test-apk', 'test.apk'])
+
     def test_repeated_system_failure_stays_red(self):
         directory, calls, execute = self.exercise([(1, CRASH), (1, CRASH)])
         with patch.object(runner, 'wait_ready', side_effect=['557', '600']), \

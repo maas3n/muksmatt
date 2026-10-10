@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Install and actually launch a built APK on the connected CI emulator."""
+import argparse
 from pathlib import Path
+from startup_instrumentation import bluray_component, require_bluray_success
 import re
 from startup_ui import center_of, find_tab, foreground_anr_title, pixel_launcher_anr_close_button
 import subprocess
@@ -8,8 +10,13 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
-apk = Path(sys.argv[1]).resolve()
-logs = Path(sys.argv[2])
+parser = argparse.ArgumentParser()
+parser.add_argument("apk", type=Path)
+parser.add_argument("logs", type=Path)
+parser.add_argument("--test-apk", type=Path)
+args = parser.parse_args()
+apk = args.apk.resolve()
+logs = args.logs
 logs.mkdir(parents=True, exist_ok=True)
 package = "io.github.maas3n.muksmatt"
 
@@ -27,6 +34,15 @@ def screen(name):
 
 try:
     print(adb("install", "-r", str(apk)))
+    if args.test_apk:
+        print(adb("install", "-r", "-t", str(args.test_apk.resolve())))
+        # Launch in the companion UID first so it can grant the real app access
+        # to provider-owned documents without exposing production test hooks.
+        prepared = adb("shell", "am", "start", "-W", "-n",
+                       package + ".test/io.github.maas3n.mattmux.PrepareBlurayActivity")
+        (logs / "prepare-fixtures.txt").write_text(prepared)
+        if "Status: ok" not in prepared or "Error:" in prepared:
+            raise RuntimeError("Unable to prepare companion SAF fixtures: " + prepared)
     adb("shell", "am", "force-stop", package)
     # Some API 26 images refuse log clearing. Preserve their logs instead;
     # successful installation, launch, survival and tab navigation are required.
@@ -78,15 +94,11 @@ try:
             raise RuntimeError("Packaged MediaInfo/demux validation failed: " + result)
         print("Bundled MediaInfo and native demux passed on Android.")
     available_instrumentation = adb("shell", "pm", "list", "instrumentation")
-    if "BluraySmokeInstrumentation" not in available_instrumentation:
-        raise RuntimeError("Required Blu-ray SAF device test instrumentation was not packaged")
-    if "BluraySmokeInstrumentation" in available_instrumentation:
-        blu_result = adb("shell", "am", "instrument", "-w",
-            package + "/io.github.maas3n.mattmux.BluraySmokeInstrumentation")
-        (logs / "bluray-saf-smoke.txt").write_text(blu_result)
-        if "MUKSMATT_BLURAY_SAF_PASS" not in blu_result:
-            raise RuntimeError("Android Blu-ray ISO/BDMV SAF remux failed: " + blu_result)
-        print("Blu-ray native ISO + BDMV SAF remux, chapter and selected-track validation passed.")
+    component = bluray_component(available_instrumentation, separate=args.test_apk is not None)
+    blu_result = adb("shell", "am", "instrument", "-w", component)
+    (logs / "bluray-saf-smoke.txt").write_text(blu_result)
+    require_bluray_success(blu_result)
+    print("Blu-ray native ISO + BDMV SAF remux, chapter and selected-track validation passed.")
 
 finally:
     logcat = adb("logcat", "-b", "main", "-b", "system", "-b", "crash", "-d", "-v", "threadtime")

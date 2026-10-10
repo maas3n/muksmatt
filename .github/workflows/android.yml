@@ -38,6 +38,13 @@ jobs:
     with:
       artifact: muKsMaTT-Android-ChromeOS-dev
 
+  release-startup:
+    needs: build
+    uses: ./.github/workflows/android-startup.yml
+    with:
+      artifact: ci-signed-release-app
+      test-artifact: ci-signed-release-instrumentation
+
   build:
     runs-on: ubuntu-latest
 
@@ -158,3 +165,45 @@ jobs:
             android/app/build/outputs/apk/debug/*.apk
             android/app/build/outputs/bundle/release/*.aab
             android/app/src/main/assets/ffmpeg/ffmpeg-build-info.txt
+
+      # Exercise the production source set with disposable CI signing. No
+      # production secrets are made available to pull-request builds.
+      - name: Build signed release and separate instrumentation for emulator validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p android/app/src/androidTest/assets
+          cp -a android/app/src/debug/assets/bluray-smoke android/app/src/androidTest/assets/
+          key="$RUNNER_TEMP/startup-release-test.jks"
+          keytool -genkeypair -keystore "$key" -storetype JKS \
+            -storepass ci-startup-password -keypass ci-startup-password \
+            -alias ci-startup -keyalg RSA -keysize 2048 -validity 2 \
+            -dname "CN=Disposable CI Startup Test" -noprompt
+          gradle -p android \
+            -PMATTRIP_SIGNING_STORE_FILE="$key" \
+            -PMATTRIP_SIGNING_STORE_PASSWORD=ci-startup-password \
+            -PMATTRIP_SIGNING_KEY_ALIAS=ci-startup \
+            -PMATTRIP_SIGNING_KEY_PASSWORD=ci-startup-password \
+            -PMATTRIP_REQUIRE_SIGNING=true \
+            :app:assembleRelease :app:assembleReleaseAndroidTest
+          python3 android/scripts/verify-startup-apks.py \
+            android/app/build/outputs/apk/release \
+            android/app/build/outputs/apk/androidTest/release \
+            "${ANDROID_HOME}/build-tools/36.0.0"
+          rm -f "$key"
+
+      - name: Upload signed release application for CI
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-signed-release-app
+          retention-days: 7
+          if-no-files-found: error
+          path: android/app/build/outputs/apk/release/*.apk
+
+      - name: Upload separate instrumentation for CI
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-signed-release-instrumentation
+          retention-days: 7
+          if-no-files-found: error
+          path: android/app/build/outputs/apk/androidTest/release/*.apk

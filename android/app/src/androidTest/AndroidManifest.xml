@@ -1,0 +1,10 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:testOnly="true">
+        <provider android:name="io.github.maas3n.mattmux.DemuxDocumentsProvider"
+            android:authorities="io.github.maas3n.muksmatt.test.demux-test"
+            android:exported="true" android:permission="android.permission.MANAGE_DOCUMENTS"
+            android:grantUriPermissions="true" />
+        <activity android:name="io.github.maas3n.mattmux.PrepareBlurayActivity"
+            android:exported="true" />
+    </application>
+</manifest>

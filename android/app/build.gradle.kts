@@ -38,10 +38,17 @@ android {
     namespace = "io.github.maas3n.mattmux"
     compileSdk = 36
 
+    // Select release only for the separate CI instrumentation APK. Production
+    // source sets and debuggability remain unchanged.
+    testBuildType = "release"
+    sourceSets.getByName("androidTest").java.srcDir("src/debug/java")
+
     defaultConfig {
         applicationId = "io.github.maas3n.muksmatt"
         minSdk = 26
         targetSdk = 36
+        testApplicationId = "io.github.maas3n.muksmatt.test"
+        testInstrumentationRunner = "io.github.maas3n.mattmux.BluraySmokeInstrumentation"
         versionCode = muksmattVersionCode
         versionName = muksmattVersionName
 

@@ -600,6 +600,11 @@ jobs:
           bash android/native/tests/test-host-remux.sh "$PWD/android/native/.work/libudfread" "$RUNNER_TEMP/remux-parity"
           bash android/native/tests/test-title-selection.sh "$PWD/android/native/.work" "$RUNNER_TEMP/title-selection"
 
+      - name: Author Blu-ray fixtures for the separate CI test APK
+        run: |
+          bash android/native/tests/test-bluray-media.sh --fixtures-only \
+            android/app/src/androidTest/assets/bluray-smoke
+
       - name: Test, lint and build signed versioned APK
         env:
           ORG_GRADLE_PROJECT_MATTRIP_SIGNING_STORE_FILE: ${{ runner.temp }}/muksmatt-app-signing.jks
@@ -611,7 +616,7 @@ jobs:
             -PMATTRIP_VERSION_NAME='${{ needs.metadata.outputs.version }}' \
             -PMATTRIP_VERSION_CODE='${{ needs.metadata.outputs.android_version_code }}' \
             -PMATTRIP_REQUIRE_SIGNING=true \
-            :app:testDebugUnitTest :app:lintRelease :app:assembleRelease
+            :app:testDebugUnitTest :app:lintRelease :app:assembleRelease :app:assembleReleaseAndroidTest
 
       - name: Verify version and bundled native libraries
         shell: bash
@@ -637,6 +642,21 @@ jobs:
             "$APK" \
             '${{ vars.ANDROID_APP_SIGNING_CERT_SHA256 }}' \
             "${ANDROID_HOME}/build-tools/36.0.0/apksigner"
+
+      - name: Verify isolated instrumentation APK and matching signing identity
+        run: |
+          python3 android/scripts/verify-startup-apks.py \
+            android/app/build/outputs/apk/release \
+            android/app/build/outputs/apk/androidTest/release \
+            "${ANDROID_HOME}/build-tools/36.0.0"
+
+      - name: Upload CI-only Android instrumentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-android-instrumentation
+          retention-days: 7
+          if-no-files-found: error
+          path: android/app/build/outputs/apk/androidTest/release/*.apk
 
       - name: Prepare Android / ChromeOS release payload
         run: |
@@ -678,6 +698,7 @@ jobs:
     uses: ./.github/workflows/android-startup.yml
     with:
       artifact: release-android
+      test-artifact: ci-android-instrumentation
       source-ref: ${{ needs.metadata.outputs.source_ref }}
 
   publish:
