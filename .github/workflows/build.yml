@@ -73,7 +73,7 @@ jobs:
         run: python packaging/windows/test-stage-bluray-windows.py -v
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: muKsMaTT-windows-amd64
           path: |
