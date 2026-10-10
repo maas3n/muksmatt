@@ -95,7 +95,8 @@ try:
         print("Bundled MediaInfo and native demux passed on Android.")
     available_instrumentation = adb("shell", "pm", "list", "instrumentation")
     component = bluray_component(available_instrumentation, separate=args.test_apk is not None)
-    blu_result = adb("shell", "am", "instrument", "-w", component)
+    # Raw output preserves the final result code even when the runner returns a stream.
+    blu_result = adb("shell", "am", "instrument", "-w", "-r", component)
     (logs / "bluray-saf-smoke.txt").write_text(blu_result)
     require_bluray_success(blu_result)
     print("Blu-ray native ISO + BDMV SAF remux, chapter and selected-track validation passed.")

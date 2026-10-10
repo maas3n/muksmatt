@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tempfile
 import zipfile
 
 
@@ -43,6 +44,17 @@ def verify(app, test, tools):
             raise RuntimeError('CI media fixtures leaked into the production APK')
     with zipfile.ZipFile(test) as archive:
         names = archive.namelist()
+        # A manifest entry alone does not prove the Kotlin runner was compiled.
+        descriptors = set()
+        with tempfile.TemporaryDirectory() as directory:
+            for name in names:
+                if re.fullmatch(r'classes(?:\d+)?\.dex', name):
+                    dex = Path(directory) / name
+                    dex.write_bytes(archive.read(name))
+                    report = command(tools / 'dexdump', dex)
+                    descriptors.update(re.findall(r"Class descriptor\s*:\s*'([^']+)'", report))
+        if 'Lio/github/maas3n/mattmux/BluraySmokeInstrumentation;' not in descriptors:
+            raise RuntimeError('Test APK declares instrumentation but its runner class was not compiled')
         if ('assets/bluray-smoke/movie.iso' not in names
                 or not any(n.startswith('assets/bluray-smoke/BDMV/PLAYLIST/') for n in names)
                 or not any(n.startswith('assets/bluray-smoke/BDMV/STREAM/') for n in names)):
