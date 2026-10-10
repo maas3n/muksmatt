@@ -20,10 +20,15 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn('      confirm_publish:', triggers)
         self.assertIn('        default: false', triggers)
         self.assertIn(
-            "  metadata:\n    # Both approvals are required; skipped metadata skips every dependent build/publish job.\n"
-            "    if: ${{ inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}",
+            "    if: ${{ inputs.build_only == true || (inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true') }}",
             workflow,
         )
+        self.assertIn(
+            "    if: ${{ inputs.build_only != true && inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}",
+            workflow,
+        )
+        self.assertIn("      build_only:", workflow)
+        self.assertIn("        default: false", workflow)
 
     def test_first_public_beta_requires_reviewed_notes(self):
         root = Path(__file__).resolve().parents[1]
