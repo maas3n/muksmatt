@@ -1,4 +1,4 @@
-> **muKsMaTT development:** The Unified release workflow is disabled while the fork is rebranded and a separate Android signing identity is established. No muKsMaTT stable or Play Store release has been published. Do not enable or dispatch production publishing without explicit authorization. The signing environment names and `MATTRIP_*` Gradle parameters are temporary inherited internal compatibility contracts; do not reuse MattRip's private keys.
+> **muKsMaTT development:** The Unified release workflow is locked against automatic publishing: pushes and tags never launch it. The repository variable `MUKSMATT_RELEASE_ENABLED` must explicitly equal `true`, and the manual run must have `confirm_publish=true`. Leave that variable **unset** while signing is being configured. No muKsMaTT stable or Play Store release has been published. The signing environment names and `MATTRIP_*` Gradle parameters are temporary inherited internal compatibility contracts; do not reuse MattRip's private keys.
 
 # Releasing muKsMaTT
 
@@ -68,7 +68,9 @@ git tag vX.Y.Z-alpha.1
 git push origin vX.Y.Z-alpha.1
 ```
 
-The **Unified release** workflow then:
+Pushing a tag **does not** start the release workflow. Public publication requires a separately authorized manual run. For the first authorized release, explicitly set the repository Actions variable `MUKSMATT_RELEASE_ENABLED=true`, dispatch **Unified release** on `main`, enter the existing tag (or leave empty for main downloads), and select **confirm_publish**. Without both the variable and confirmation, all build/publish jobs are skipped. Do **not** set that variable during signing setup.
+
+Once manually approved, the **Unified release** workflow:
 
 1. validates the unified tag format;
 2. derives one product version plus the Android `versionCode`;
@@ -82,7 +84,7 @@ The **Unified release** workflow then:
 
 The workflow refuses to overwrite an existing GitHub Release.
 
-The same workflow can be run manually for an **existing** unified tag by using `workflow_dispatch` and supplying that tag. Manual dispatch does not invent or move tags.
+Manual dispatch uses an **existing** unified tag or an empty tag for the rolling main snapshot. Manual dispatch does not invent or move tags; it cannot publish without the separate repository opt-in and explicit `confirm_publish` checkbox. The independent **Android signing self-test** may run while publication remains locked.
 
 ## Android signing gate
 
