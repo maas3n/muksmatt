@@ -1,17 +1,19 @@
 name: Unified release
 
+# Production publishing is opt-in only: never publish on a push or tag.
+# The default/absent repository variable is fail-closed.
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
         description: 'Existing unified release tag. Leave blank to rebuild the rolling main downloads.'
         required: false
         type: string
+      confirm_publish:
+        description: 'I explicitly authorize publishing the selected muKsMaTT release.'
+        required: true
+        type: boolean
+        default: false
 
 # Serialize channels and never cancel a publisher midway through publication.
 concurrency:
@@ -27,6 +29,8 @@ env:
 
 jobs:
   metadata:
+    # Both approvals are required; skipped metadata skips every dependent build/publish job.
+    if: ${{ inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.meta.outputs.mode }}

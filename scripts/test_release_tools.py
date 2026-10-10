@@ -11,6 +11,19 @@ from release_version import android_version_code
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_unified_release_is_manual_and_fails_closed(self):
+        workflow = (Path(__file__).resolve().parents[1] / '.github/workflows/release.yml').read_text()
+        triggers = workflow.split('\non:\n', 1)[1].split('\n# Serialize', 1)[0]
+        self.assertIn('  workflow_dispatch:', triggers)
+        self.assertNotIn('  push:', triggers)
+        self.assertIn('      confirm_publish:', triggers)
+        self.assertIn('        default: false', triggers)
+        self.assertIn(
+            "  metadata:\n    # Both approvals are required; skipped metadata skips every dependent build/publish job.\n"
+            "    if: ${{ inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}",
+            workflow,
+        )
+
     def test_channel_transitions_increase_version_codes(self):
         # Historical v1.6.0-alpha.1 -> main -> numbered -> main.
         codes = [10_600_001] + [android_version_code(n) for n in (3, 4, 5)]
