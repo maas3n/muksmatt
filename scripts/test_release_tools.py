@@ -24,6 +24,23 @@ class ReleaseTests(unittest.TestCase):
             workflow,
         )
 
+    def test_first_public_beta_requires_reviewed_notes(self):
+        root = Path(__file__).resolve().parents[1]
+        notes = root / 'docs/releases/v0.1.0-beta.1.md'
+        self.assertTrue(notes.is_file() and notes.stat().st_size > 0)
+        body = notes.read_text(encoding='utf-8')
+        for phrase in ('Experimental prerelease', 'Physical Blu-ray drives',
+                       'AACS and BD+', 'Report a test result', 'issue #20'):
+            self.assertIn(phrase, body)
+        workflow = (root / '.github/workflows/release.yml').read_text()
+        self.assertIn('notes_file="docs/releases/${tag}.md"', workflow)
+        self.assertIn('test -s "$notes_file"', workflow)
+        self.assertIn('args+=(--notes-file "$notes_file")', workflow)
+        self.assertIn('args+=(--prerelease)', workflow)
+        self.assertIn('--latest=false', workflow)
+        # Never weaken the explicit double authorization during prep.
+        self.assertIn("inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true'", workflow)
+
     def test_channel_transitions_increase_version_codes(self):
         # Historical v1.6.0-alpha.1 -> main -> numbered -> main.
         codes = [10_600_001] + [android_version_code(n) for n in (3, 4, 5)]
