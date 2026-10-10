@@ -65,6 +65,9 @@ jobs:
           /tmp/muksmatt-cli --help >/tmp/muksmatt-help.txt 2>&1 || true
           grep -F -- '--batch' /tmp/muksmatt-help.txt
 
+      - name: Validate authored Blu-ray BDMV and ISO with actual desktop CLI
+        run: bash scripts/test-bluray-desktop-cli.sh /tmp/muksmatt-cli "$RUNNER_TEMP/muksmatt-bluray-nav"
+
       - name: Validate Debian preview version ordering
         run: |
           dpkg --compare-versions '1.4.1~alpha.1' lt '1.4.1~beta.1'

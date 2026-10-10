@@ -5,6 +5,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 VERSION=2.7.0
+# Default fast fixture stays six seconds for JNI/emulator parity. The desktop
+# FFmpeg bluray: protocol filters out playlists shorter than 180 seconds, so
+# desktop end-to-end CI can opt into a longer authored fixture independently.
+FIXTURE_DURATION="${MUKSMATT_BD_FIXTURE_DURATION:-6}"
+FIXTURE_SIZE="${MUKSMATT_BD_FIXTURE_SIZE:-1280x720}"
+FIXTURE_BITRATE="${MUKSMATT_BD_FIXTURE_BITRATE:-4000k}"
+[[ "$FIXTURE_DURATION" =~ ^[0-9]+$ ]] && (( FIXTURE_DURATION >= 6 && FIXTURE_DURATION <= 240 )) || {
+  echo "Invalid authored Blu-ray fixture duration" >&2; exit 2;
+}
+[[ "$FIXTURE_SIZE" =~ ^[0-9]+x[0-9]+$ ]] || { echo "Invalid fixture size" >&2; exit 2; }
 curl -fLsS --retry 3 --proto '=https' --tlsv1.2 \
   "https://github.com/justdan96/tsMuxer/releases/download/$VERSION/tsMuxer-$VERSION-linux.zip" \
   -o "$WORK/tsmuxer.zip"
@@ -19,10 +29,10 @@ test -n "$TSMUXER"
 chmod +x "$TSMUXER"
 
 ffmpeg -hide_banner -loglevel error -nostdin -y \
-  -f lavfi -i "testsrc2=size=1280x720:rate=25:duration=6" \
-  -an -c:v mpeg2video -pix_fmt yuv420p -b:v 4000k -g 12 "$WORK/video.m2v"
+  -f lavfi -i "testsrc2=size=${FIXTURE_SIZE}:rate=25:duration=${FIXTURE_DURATION}" \
+  -an -c:v mpeg2video -pix_fmt yuv420p -b:v "$FIXTURE_BITRATE" -g 12 "$WORK/video.m2v"
 ffmpeg -hide_banner -loglevel error -nostdin -y \
-  -f lavfi -i "sine=frequency=733:sample_rate=48000:duration=6" \
+  -f lavfi -i "sine=frequency=733:sample_rate=48000:duration=${FIXTURE_DURATION}" \
   -ac 2 -c:a pcm_s24le "$WORK/audio.wav"
 cat > "$WORK/disc.meta" <<META
 MUXOPT --blu-ray --custom-chapters=00:00:01.000;00:00:03.000
@@ -46,7 +56,7 @@ if [[ "${1:-}" == "--fixtures-only" ]]; then
         cp -a "$WORK/disc/CERTIFICATE" "$destination/CERTIFICATE"
     fi
     cp "$WORK/disc.iso" "$destination/movie.iso"
-    printf '%s\n' "Self-authored unencrypted Blu-ray test; 6 seconds; 24-bit stereo LPCM; MPEG-2; chapter marks" > "$destination/README.txt"
+    printf '%s\n' "Self-authored unencrypted Blu-ray test; ${FIXTURE_DURATION} seconds; 24-bit stereo LPCM; MPEG-2; chapter marks" > "$destination/README.txt"
     echo "Blu-ray Android debug ISO/BDMV fixtures generated"
     exit 0
 fi

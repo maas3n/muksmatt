@@ -53,7 +53,9 @@ func cliBluray(ctx context.Context, args []string) {
 		}
 		source, err := resolveBluraySource(fs.Arg(0))
 		fatalIf(err)
-		playlists, err := discoverBlurayPlaylists(source)
+		// ISO images and physical drives require native libbluray playlist discovery.
+		// Folder sources continue using the bounded MPLS parser.
+		playlists, err := discoverBlurayForSource(ctx, source)
 		fatalIf(err)
 		playlist, err := selectBlurayPlaylist(playlists, *id)
 		fatalIf(err)
