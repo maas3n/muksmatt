@@ -112,9 +112,10 @@ COMMON_FLAGS=(
   --disable-avdevice
   --disable-avfilter
   --disable-swscale
-  --disable-swresample
   --disable-encoders
+  --enable-encoder=flac
   --disable-decoders
+  --enable-decoder=pcm_bluray
   --disable-hwaccels
   --disable-filters
   --disable-demuxer=dvdvideo
@@ -133,6 +134,9 @@ normalize_needed() {
         ;;
       libavcodec.so.*)
         patchelf --replace-needed "${dep}" libavcodec.so "${file}"
+        ;;
+      libswresample.so.*)
+        patchelf --replace-needed "${dep}" libswresample.so "${file}"
         ;;
       libavformat.so.*)
         patchelf --replace-needed "${dep}" libavformat.so "${file}"
@@ -199,7 +203,9 @@ build_abi() {
       exit 1
     fi
 
-    if grep -q '^#define CONFIG_DVDVIDEO_DEMUXER 1$' config.h; then
+    grep -q '^#define CONFIG_FLAC_ENCODER 1$' config_components.h
+    grep -q '^#define CONFIG_PCM_BLURAY_DECODER 1$' config_components.h
+    if grep -q '^#define CONFIG_DVDVIDEO_DEMUXER 1$' config_components.h; then
       echo "FFmpeg dvdvideo demuxer must remain disabled in the commercial build." >&2
       exit 1
     fi
@@ -211,6 +217,7 @@ build_abi() {
   copy_android_shared_library "${prefix}" "${abi}" avutil
   copy_android_shared_library "${prefix}" "${abi}" avcodec
   copy_android_shared_library "${prefix}" "${abi}" avformat
+  copy_android_shared_library "${prefix}" "${abi}" swresample
 
   mkdir -p "${WORK_DIR}/udf-${abi}"
   (

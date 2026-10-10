@@ -18,6 +18,10 @@ internal class BluraySafTreeBridge(
     companion object {
         private val loadError = runCatching {
             System.loadLibrary("muksmatt_bluray_udfread")
+            System.loadLibrary("avutil")
+            System.loadLibrary("swresample")
+            System.loadLibrary("avcodec")
+            System.loadLibrary("avformat")
             System.loadLibrary("bluray")
             System.loadLibrary("muksmatt_bluray")
         }.exceptionOrNull()
@@ -30,6 +34,54 @@ internal class BluraySafTreeBridge(
         playlist: Int,
         sampleBytes: Int,
     ): String
+
+    private external fun nativeProbeStreamsTree(
+        provider: BluraySafTreeBridge, playlist: Int,
+    ): String
+
+    fun probeStreams(playlist: Int? = null): List<BlurayMkvTrack> {
+        require(playlist == null || playlist in 0..99999) { "Invalid Blu-ray playlist" }
+        if (loadError != null) throw IOException("Native Blu-ray engine unavailable", loadError)
+        return BlurayMkvTrackCatalog.parse(nativeProbeStreamsTree(this, playlist ?: -1))
+    }
+
+    private external fun nativeRemuxTree(
+        provider: BluraySafTreeBridge,
+        playlist: Int,
+        outputFd: Int,
+        selectedStreamIndexes: IntArray?,
+        includeChapters: Boolean,
+    ): String?
+
+    /** Remux directly from the granted BDMV SAF tree to a new MKV document. */
+    fun remux(
+        outputTreeUri: Uri,
+        outputName: String,
+        playlist: Int? = null,
+        selectedStreamIndexes: IntArray? = null,
+        includeChapters: Boolean = true,
+    ): Uri {
+        require(playlist == null || playlist in 0..99999) { "Invalid Blu-ray playlist" }
+        require(selectedStreamIndexes == null ||
+            (selectedStreamIndexes.isNotEmpty() &&
+             selectedStreamIndexes.size <= 256 &&
+             selectedStreamIndexes.all { it >= 0 } &&
+             selectedStreamIndexes.toSet().size == selectedStreamIndexes.size)) {
+            "Invalid Blu-ray stream selection"
+        }
+        if (loadError != null) throw IOException("Native Blu-ray engine unavailable", loadError)
+        val chosen = if (selectedStreamIndexes == null) null else {
+            BlurayMkvTrackCatalog.validateSelection(
+                probeStreams(playlist), selectedStreamIndexes
+            )
+        }
+        return BlurayMkvSafOutput.create(resolver, outputTreeUri, outputName) { fd ->
+            val error = nativeRemuxTree(
+                this, playlist ?: -1, fd, chosen, includeChapters
+            )
+            if (error != null) throw IOException(error)
+        }
+    }
 
     init {
         require(DocumentsContract.isTreeUri(treeUri)) { "Select a Blu-ray folder using the SAF picker" }

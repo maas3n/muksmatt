@@ -36,5 +36,15 @@ class DemuxDocumentsProvider : DocumentsProvider() {
         check(if (mimeType == Document.MIME_TYPE_DIR) output.mkdir() else output.createNewFile())
         return paths.documentId(output)
     }
+    override fun renameDocument(documentId: String, displayName: String): String {
+        require(displayName.isNotBlank() && displayName != "." && displayName != ".." &&
+            '/' !in displayName && '\\' !in displayName) { "Unsafe document name" }
+        val old = file(documentId)
+        val parent = old.parentFile ?: error("Cannot rename root document")
+        val newFile = File(parent, displayName)
+        check(!newFile.exists() && old.renameTo(newFile)) { "Cannot publish SAF output" }
+        return paths.documentId(newFile)
+    }
+
     override fun deleteDocument(documentId: String) { check(file(documentId).deleteRecursively()) }
 }

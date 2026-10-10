@@ -18,6 +18,10 @@ internal class BlurayNativeIsoBridge(private val resolver: ContentResolver) {
     companion object {
         private val loadError = runCatching {
             System.loadLibrary("muksmatt_bluray_udfread")
+            System.loadLibrary("avutil")
+            System.loadLibrary("swresample")
+            System.loadLibrary("avcodec")
+            System.loadLibrary("avformat")
             System.loadLibrary("bluray")
             System.loadLibrary("muksmatt_bluray")
         }.exceptionOrNull()
@@ -50,11 +54,81 @@ internal class BlurayNativeIsoBridge(private val resolver: ContentResolver) {
         }
     }
 
+    /** Inspect a completed Matroska file using the packaged FFmpeg demuxer, not the DVD JNI. */
+    internal data class MkvSummary(
+        val mpeg2Video: Int, val flacAudio: Int, val other: Int, val chapters: Int,
+    )
+
+    private external fun nativeInspectMkv(path: String): IntArray
+
+    internal fun inspectMkv(path: String): MkvSummary {
+        if (!isAvailable) throw IOException(unavailableReason ?: "Blu-ray runtime unavailable")
+        val fields = nativeInspectMkv(path)
+        check(fields.size == 4 && fields.all { it >= 0 }) { "Invalid native MKV inspection result" }
+        return MkvSummary(fields[0], fields[1], fields[2], fields[3])
+    }
+
     private external fun nativeInspectIso(
         fd: Int,
         requestedPlaylist: Int,
         sampleBytes: Int,
     ): String
+
+    private external fun nativeProbeStreamsIso(sourceFd: Int, playlist: Int): String
+
+    fun probeStreams(isoUri: Uri, playlist: Int? = null): List<BlurayMkvTrack> {
+        require(playlist == null || playlist in 0..99999) { "Invalid Blu-ray playlist" }
+        if (!isAvailable) throw IOException(unavailableReason ?: "Blu-ray runtime unavailable")
+        val source = resolver.openFileDescriptor(isoUri, "r")
+            ?: throw IOException("SAF provider cannot open Blu-ray ISO")
+        return source.use {
+            BlurayMkvTrackCatalog.parse(nativeProbeStreamsIso(it.fd, playlist ?: -1))
+        }
+    }
+
+    private external fun nativeRemuxIso(
+        sourceFd: Int, outputFd: Int, playlist: Int,
+        selectedStreamIndexes: IntArray?, includeChapters: Boolean,
+    ): String?
+
+    /**
+     * Direct Blu-ray ISO-to-MKV remux. All eligible streams are copied except
+     * Blu-ray LPCM, which must always be encoded losslessly to FLAC.
+     * Native playlist selection is independent of the existing DVD engine.
+     */
+    fun remux(
+        isoUri: Uri,
+        outputTreeUri: Uri,
+        outputName: String,
+        playlist: Int? = null,
+        selectedStreamIndexes: IntArray? = null,
+        includeChapters: Boolean = true,
+    ): Uri {
+        require(playlist == null || playlist in 0..99999) { "Invalid Blu-ray playlist" }
+        require(selectedStreamIndexes == null ||
+            (selectedStreamIndexes.isNotEmpty() &&
+             selectedStreamIndexes.size <= 256 &&
+             selectedStreamIndexes.all { it >= 0 } &&
+             selectedStreamIndexes.toSet().size == selectedStreamIndexes.size)) {
+            "Invalid Blu-ray stream selection"
+        }
+        if (!isAvailable) throw IOException(unavailableReason ?: "Blu-ray runtime unavailable")
+        val tracks = if (selectedStreamIndexes != null) probeStreams(isoUri, playlist) else null
+        val chosen = if (tracks != null) {
+            BlurayMkvTrackCatalog.validateSelection(tracks, selectedStreamIndexes)
+        } else null
+        val source = resolver.openFileDescriptor(isoUri, "r")
+            ?: throw IOException("SAF provider cannot open Blu-ray ISO")
+        return source.use {
+            BlurayMkvSafOutput.create(resolver, outputTreeUri, outputName) { outputFd ->
+                val error = nativeRemuxIso(
+                    it.fd, outputFd, playlist ?: -1,
+                    chosen, includeChapters
+                )
+                if (error != null) throw IOException(error)
+            }
+        }
+    }
 
     val isAvailable: Boolean get() = loadError == null
     val unavailableReason: String?

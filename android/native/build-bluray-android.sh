@@ -110,8 +110,9 @@ CROSS
         "$SCRIPT_DIR/bluray_saf_blocks.c" \
         "$SCRIPT_DIR/bluray_iso_jni.c" \
         "$SCRIPT_DIR/bluray_saf_files.c" \
+        "$SCRIPT_DIR/bluray_mkv_core.c" \
         -L"$jni" -L"$udf_prefix/lib" -Wl,--no-as-needed \
-        -lbluray -ludfread -llog -ldl \
+        -lbluray -ludfread -lavformat -lavcodec -lavutil -lswresample -llog -ldl \
         -Wl,-z,max-page-size=16384 -Wl,--no-undefined \
         -Wl,-soname,libmuksmatt_bluray.so \
         -o "$jni/libmuksmatt_bluray.so"
@@ -119,6 +120,10 @@ CROSS
         case "$dep" in
             libudfread.so.*) patchelf --replace-needed "$dep" libmuksmatt_bluray_udfread.so "$jni/libmuksmatt_bluray.so" ;;
             libbluray.so.*) patchelf --replace-needed "$dep" libbluray.so "$jni/libmuksmatt_bluray.so" ;;
+            libavformat.so.*) patchelf --replace-needed "$dep" libavformat.so "$jni/libmuksmatt_bluray.so" ;;
+            libavcodec.so.*) patchelf --replace-needed "$dep" libavcodec.so "$jni/libmuksmatt_bluray.so" ;;
+            libavutil.so.*) patchelf --replace-needed "$dep" libavutil.so "$jni/libmuksmatt_bluray.so" ;;
+            libswresample.so.*) patchelf --replace-needed "$dep" libswresample.so "$jni/libmuksmatt_bluray.so" ;;
         esac
     done < <(patchelf --print-needed "$jni/libmuksmatt_bluray.so")
     patchelf --print-needed "$jni/libmuksmatt_bluray.so" | grep -q '^libbluray.so$'
@@ -126,6 +131,17 @@ CROSS
         grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeInspectIso'
     "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
         grep -q 'Java_io_github_maas3n_mattmux_BluraySafTreeBridge_nativeInspectTree'
+    "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
+        grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeRemuxIso'
+    "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
+        grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeInspectMkv'
+    "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
+        grep -q 'Java_io_github_maas3n_mattmux_BluraySafTreeBridge_nativeRemuxTree'
+    "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
+        grep -q 'Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeProbeStreamsIso'
+    "$TOOLCHAIN/bin/llvm-nm" -D "$jni/libmuksmatt_bluray.so" |
+        grep -q 'Java_io_github_maas3n_mattmux_BluraySafTreeBridge_nativeProbeStreamsTree'
+    patchelf --print-needed "$jni/libmuksmatt_bluray.so" | grep -q '^libswresample.so$'
     "$TOOLCHAIN/bin/llvm-strip" --strip-unneeded "$jni/libbluray.so" "$jni/libmuksmatt_bluray.so" "$jni/libmuksmatt_bluray_udfread.so"
     {
       echo

@@ -8,7 +8,9 @@
 #define _POSIX_C_SOURCE 200809L
 #include <jni.h>
 #include <libbluray/bluray.h>
+#include <libavformat/avformat.h>
 #include "bluray_saf_blocks.h"
+#include "bluray_mkv_core.h"
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -115,4 +117,118 @@ cleanup:
     free(result);
     if (failure && !(*env)->ExceptionCheck(env)) io_error(env, failure);
     return response;
+}
+
+
+/* Write a selected Blu-ray playlist straight to a SAF MKV output descriptor.
+ * Both SAF descriptors are borrowed and remain owned by Kotlin.
+ * Returns NULL on success, descriptive error on failure.
+ */
+JNIEXPORT jstring JNICALL
+Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeRemuxIso(
+    JNIEnv *env, jobject self, jint iso_fd, jint output_fd, jint playlist,
+    jintArray selected_streams, jboolean chapters)
+{
+    (void)self;
+    if (iso_fd < 0 || output_fd < 0 || playlist < -1 || playlist > 99999) {
+        return (*env)->NewStringUTF(env, "Invalid Blu-ray ISO remux descriptors or playlist");
+    }
+    int count = selected_streams ? (*env)->GetArrayLength(env, selected_streams) : 0;
+    if (count < 0 || count > 256)
+        return (*env)->NewStringUTF(env, "Invalid Blu-ray stream selection");
+    jint *indices = selected_streams ? (*env)->GetIntArrayElements(env, selected_streams, NULL) : NULL;
+    if (selected_streams && !indices) return NULL;
+    BluraySafBlocks blocks = {.fd = -1};
+    BLURAY *bd = NULL;
+    char error[512] = "Could not open Blu-ray ISO";
+    int ret = -1;
+    if (bluray_saf_blocks_open(&blocks, iso_fd) < 0) {
+        snprintf(error, sizeof(error), "Blu-ray ISO must be a complete seekable SAF file");
+    } else {
+        bd = bd_init();
+        if (!bd || !bd_open_stream(bd, &blocks, bluray_saf_read_blocks))
+            snprintf(error, sizeof(error), "libbluray cannot open the selected Blu-ray ISO");
+        else ret = muksmatt_bd_mkv(bd, playlist, output_fd, (const int *)indices,
+                                    count, chapters ? 1 : 0, error, sizeof(error));
+    }
+    if (bd) bd_close(bd);
+    bluray_saf_blocks_close(&blocks);
+    if (indices) (*env)->ReleaseIntArrayElements(env, selected_streams, indices, JNI_ABORT);
+    return ret < 0 ? (*env)->NewStringUTF(env, error) : NULL;
+}
+
+
+JNIEXPORT jstring JNICALL
+Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeProbeStreamsIso(
+    JNIEnv *env, jobject self, jint iso_fd, jint playlist)
+{
+    (void)self;
+    if (iso_fd < 0 || playlist < -1 || playlist > 99999) {
+        io_error(env, "Invalid Blu-ray ISO stream probe arguments");
+        return NULL;
+    }
+    BluraySafBlocks blocks = {.fd = -1};
+    BLURAY *bd = NULL;
+    char report[32768] = {0};
+    char error[512] = "Cannot open Blu-ray ISO";
+    int ret = -1;
+    if (bluray_saf_blocks_open(&blocks, iso_fd) >= 0) {
+        bd = bd_init();
+        if (bd && bd_open_stream(bd, &blocks, bluray_saf_read_blocks))
+            ret = muksmatt_bd_tracks(bd, playlist, report, sizeof(report),
+                                     error, sizeof(error));
+    }
+    if (bd) bd_close(bd);
+    bluray_saf_blocks_close(&blocks);
+    if (ret < 0) {
+        io_error(env, error);
+        return NULL;
+    }
+    return (*env)->NewStringUTF(env, report);
+}
+
+
+/* Independently verify the MKV's tracks and chapters using packaged FFmpeg.
+ * This is intentionally separate from the legacy AdvancedMergerNative bridge.
+ * Returns [MPEG2-video, FLAC-audio, other-streams, chapters] counts.
+ */
+JNIEXPORT jintArray JNICALL
+Java_io_github_maas3n_mattmux_BlurayNativeIsoBridge_nativeInspectMkv(
+    JNIEnv *env, jobject self, jstring filename)
+{
+    (void)self;
+    if (!filename) {
+        io_error(env, "Missing MKV inspection path");
+        return NULL;
+    }
+    const char *path = (*env)->GetStringUTFChars(env, filename, NULL);
+    if (!path) return NULL;
+    AVFormatContext *input = NULL;
+    int status = avformat_open_input(&input, path, NULL, NULL);
+    (*env)->ReleaseStringUTFChars(env, filename, path);
+    if (status < 0) {
+        avformat_close_input(&input);
+        io_error(env, "FFmpeg could not open the completed Blu-ray MKV");
+        return NULL;
+    }
+    jint counts[4] = {0, 0, 0, 0};
+    for (unsigned i = 0; i < input->nb_streams; ++i) {
+        const AVCodecParameters *codec = input->streams[i]->codecpar;
+        if (codec->codec_type == AVMEDIA_TYPE_VIDEO && codec->codec_id == AV_CODEC_ID_MPEG2VIDEO)
+            ++counts[0];
+        else if (codec->codec_type == AVMEDIA_TYPE_AUDIO && codec->codec_id == AV_CODEC_ID_FLAC)
+            ++counts[1];
+        else
+            ++counts[2];
+    }
+    if (input->nb_chapters > INT_MAX) {
+        avformat_close_input(&input);
+        io_error(env, "Too many chapters in Blu-ray MKV");
+        return NULL;
+    }
+    counts[3] = (jint)input->nb_chapters;
+    avformat_close_input(&input);
+    jintArray result = (*env)->NewIntArray(env, 4);
+    if (result) (*env)->SetIntArrayRegion(env, result, 0, 4, counts);
+    return result;
 }
