@@ -21,7 +21,11 @@ done
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 DISC="$WORK/authored-disc"
-bash "$ROOT/android/native/tests/test-bluray-media.sh" --fixtures-only "$DISC"
+# FFmpeg's bluray: protocol calls libbluray with a 180-second minimum title
+# filter; make the desktop-only authored title 185s so it is actually readable.
+MUKSMATT_BD_FIXTURE_DURATION=185 MUKSMATT_BD_FIXTURE_SIZE=720x480 \
+    MUKSMATT_BD_FIXTURE_BITRATE=450k \
+    bash "$ROOT/android/native/tests/test-bluray-media.sh" --fixtures-only "$DISC"
 ISO="$DISC/movie.iso"
 test -s "$ISO" && test -d "$DISC/BDMV/PLAYLIST"
 
