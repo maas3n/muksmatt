@@ -14,6 +14,11 @@ on:
         required: true
         type: boolean
         default: false
+      build_only:
+        description: 'Build and validate all release packages WITHOUT creating or publishing any GitHub Release.'
+        required: false
+        type: boolean
+        default: false
 
 # Serialize channels and never cancel a publisher midway through publication.
 concurrency:
@@ -29,8 +34,9 @@ env:
 
 jobs:
   metadata:
-    # Both approvals are required; skipped metadata skips every dependent build/publish job.
-    if: ${{ inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}
+    # A build-only rehearsal may package everything but can never publish.
+    # Normal publication requires both separate approvals.
+    if: ${{ inputs.build_only == true || (inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true') }}
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.meta.outputs.mode }}
@@ -102,6 +108,16 @@ jobs:
             version="${tag#v}"
             windows_numeric_version="${major}.${minor}.${patch}.0"
             git rev-parse --verify "refs/tags/${tag}^{commit}" >/dev/null
+
+            # Preview releases require reviewed tester-facing limitations,
+            # not automatically generated notes that may imply validation.
+            if [[ "$prerelease" == "true" ]]; then
+              notes_file="docs/releases/${tag}.md"
+              test -s "$notes_file" || {
+                echo "Missing required prerelease notes: $notes_file" >&2
+                exit 1
+              }
+            fi
           fi
 
           android_version_code="$(python3 scripts/release_version.py)"
@@ -666,6 +682,8 @@ jobs:
 
   publish:
     needs: [metadata, windows, linux, android, android-startup]
+    # Even when build-only packages succeed, public publishing is prohibited.
+    if: ${{ inputs.build_only != true && inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -713,30 +731,17 @@ jobs:
             exit 1
           fi
 
-      - name: Publish one cross-platform numbered GitHub Release
+      - name: Stage, verify and publish a complete numbered GitHub Release
         if: ${{ needs.metadata.outputs.mode == 'release' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag='${{ needs.metadata.outputs.tag }}'
-          version='${{ needs.metadata.outputs.version }}'
-          prerelease='${{ needs.metadata.outputs.prerelease }}'
-
-          args=(
-            release create "$tag"
-            release-assets/*
-            --repo "$GITHUB_REPOSITORY"
-            --verify-tag
-            --target "$(git rev-parse HEAD)"
-            --title "muKsMaTT $version"
-            --generate-notes
-            --latest=false
-          )
-          if [[ "$prerelease" == "true" ]]; then
-            args+=(--prerelease)
-          fi
-          gh "${args[@]}"
+          python3 scripts/publish_numbered.py \
+            release-assets \
+            '${{ needs.metadata.outputs.tag }}' \
+            '${{ needs.metadata.outputs.version }}' \
+            '${{ needs.metadata.outputs.prerelease }}'
 
       - name: Add stable filenames to the complete main snapshot
         if: ${{ needs.metadata.outputs.mode == 'main' }}

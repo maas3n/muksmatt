@@ -4,13 +4,14 @@
 
 > **Development status — not yet released.** The muKsMaTT packaging and identity migration is underway. The automatic Unified release publisher is intentionally disabled, and **there are no muKsMaTT release downloads yet**. GitHub Actions builds in pull requests are development/test artifacts, not signed production releases. Do not use the original MattRip download links as if they were muKsMaTT builds.
 
-The long-term objective is **DVD and Blu-ray remux/demux and decryption** on Windows, Linux, and Android, without transcoding existing video/audio/subtitle streams where stream-copy is feasible. **Blu-ray is planned, not yet implemented.** Android physical USB optical-drive handling is also a separate milestone. The current DVD build uses existing libdvdread/libdvdnav/libdvdcss integrations, with the Google Play variant deliberately CSS-free pending a distribution review.
+The long-term objective is **DVD and Blu-ray remux/demux and decryption** on Windows, Linux, and Android, without transcoding existing video/audio/subtitle streams where stream-copy is feasible. **Experimental Blu-ray development is implemented for authored BDMV folders and ISO media, but has not been validated on real physical Blu-ray drives or protected commercial discs.** Android physical USB optical-drive handling is a separate, unverified milestone. The current DVD build uses existing libdvdread/libdvdnav/libdvdcss integrations, with the Google Play variant deliberately CSS-free pending a distribution review.
 
 ## Build and release status
 
 - [GitHub Actions and development artifacts](https://github.com/maas3n/muksmatt/actions)
 - [Open development pull requests](https://github.com/maas3n/muksmatt/pulls)
 - [Release page](https://github.com/maas3n/muksmatt/releases) — downloads will appear **only after the first successful authorized publication**.
+- [Proposed first public beta testing notes](docs/releases/v0.1.0-beta.1.md) — test instructions and known limitations; this document does **not** mean a release has been published.
 
 When the first complete muKsMaTT release is published, the stable filenames will be `muKsMaTT-Windows-All-in-One.exe`, `muKsMaTT-Linux-amd64Standalone`, and `muKsMaTT-Android.apk`. The portable Windows executable and CLI use lowercase `muksmatt.exe` and `muksmatt-cli.exe`.
 

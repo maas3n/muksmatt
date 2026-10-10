@@ -7,6 +7,7 @@ import unittest
 
 from check_signing_environment import missing_settings
 from publish_main import publish, verify_assets
+from publish_numbered import publish as publish_numbered
 from release_version import android_version_code
 
 
@@ -19,10 +20,104 @@ class ReleaseTests(unittest.TestCase):
         self.assertIn('      confirm_publish:', triggers)
         self.assertIn('        default: false', triggers)
         self.assertIn(
-            "  metadata:\n    # Both approvals are required; skipped metadata skips every dependent build/publish job.\n"
-            "    if: ${{ inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}",
+            "    if: ${{ inputs.build_only == true || (inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true') }}",
             workflow,
         )
+        self.assertIn(
+            "    if: ${{ inputs.build_only != true && inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true' }}",
+            workflow,
+        )
+        self.assertIn("      build_only:", workflow)
+        self.assertIn("        default: false", workflow)
+
+    def test_first_public_beta_requires_reviewed_notes(self):
+        root = Path(__file__).resolve().parents[1]
+        notes = root / 'docs/releases/v0.1.0-beta.1.md'
+        self.assertTrue(notes.is_file() and notes.stat().st_size > 0)
+        body = notes.read_text(encoding='utf-8')
+        for phrase in ('Experimental prerelease', 'Physical Blu-ray drives',
+                       'AACS and BD+', 'Report a test result', 'issue #20'):
+            self.assertIn(phrase, body)
+        workflow = (root / '.github/workflows/release.yml').read_text()
+        self.assertIn('notes_file="docs/releases/${tag}.md"', workflow)
+        self.assertIn('test -s "$notes_file"', workflow)
+        self.assertIn("python3 scripts/publish_numbered.py", workflow)
+        publish_script = (root / 'scripts/publish_numbered.py').read_text()
+        self.assertIn('create.append("--prerelease")', publish_script)
+        self.assertIn('create.extend(("--notes-file", str(notes_file)))', publish_script)
+        self.assertIn('"--draft"', publish_script)
+        self.assertIn('verify_assets(local, release.get("assets", []))', publish_script)
+        self.assertIn('"--latest=false"', publish_script)
+        # Never weaken the explicit double authorization during prep.
+        self.assertIn("inputs.confirm_publish == true && vars.MUKSMATT_RELEASE_ENABLED == 'true'", workflow)
+
+    def simulated_numbered(self, upload_fails=False, corrupt=False):
+        root, assets = self.fixture()
+        commands = []
+
+        def fake_run(*args):
+            commands.append(args)
+            if args[:2] == ('git', 'rev-parse'):
+                return 'sha'
+            if args[:3] == ('gh', 'release', 'upload') and upload_fails:
+                raise subprocess.CalledProcessError(1, args)
+            if args[:3] == ('gh', 'api', '--paginate'):
+                return json.dumps([[{
+                    'id': 789,
+                    'tag_name': 'v0.1.0-beta.1',
+                    'draft': True,
+                }]])
+            if args[:2] == ('gh', 'api'):
+                return json.dumps({
+                    'id': 789,
+                    'tag_name': 'v0.1.0-beta.1',
+                    'draft': True,
+                    'target_commitish': 'sha',
+                    'assets': assets[:-1] if corrupt else assets,
+                })
+            return ''
+
+        try:
+            publish_numbered(root, 'maas3n/muksmatt', 'v0.1.0-beta.1',
+                             '0.1.0-beta.1', True, run=fake_run)
+        except (subprocess.CalledProcessError, RuntimeError):
+            if not (upload_fails or corrupt):
+                raise
+        return commands
+
+    def test_numbered_beta_publication_is_atomic(self):
+        calls = self.simulated_numbered()
+        actions = [c[1:3] for c in calls if len(c) >= 3 and c[0] == 'gh']
+        self.assertLess(actions.index(('release', 'create')),
+                        actions.index(('release', 'upload')))
+        self.assertEqual(actions[-1], ('release', 'edit'))
+        create = next(c for c in calls if c[1:3] == ('release', 'create'))
+        self.assertIn('--draft', create)
+        self.assertIn('--prerelease', create)
+        self.assertIn('--latest=false', create)
+        self.assertIn('--notes-file', create)
+        finish = calls[-1]
+        self.assertIn('--draft=false', finish)
+        self.assertIn('--prerelease=true', finish)
+        self.assertIn('--latest=false', finish)
+
+    def test_failed_numbered_upload_stays_private(self):
+        for calls in (self.simulated_numbered(upload_fails=True),
+                      self.simulated_numbered(corrupt=True)):
+            self.assertTrue(any(c[1:3] == ('release', 'create') and '--draft' in c
+                                for c in calls))
+            self.assertFalse(any(c[1:3] == ('release', 'edit') for c in calls))
+
+    def test_preview_without_reviewed_notes_fails_before_creation(self):
+        root, _ = self.fixture()
+        calls = []
+        def fake_run(*args):
+            calls.append(args)
+            return 'sha'
+        with self.assertRaises(RuntimeError):
+            publish_numbered(root, 'maas3n/muksmatt', 'v0.1.0-rc.1',
+                             '0.1.0-rc.1', True, run=fake_run)
+        self.assertFalse(any(c[1:3] == ('release', 'create') for c in calls))
 
     def test_channel_transitions_increase_version_codes(self):
         # Historical v1.6.0-alpha.1 -> main -> numbered -> main.
