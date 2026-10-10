@@ -36,13 +36,15 @@ For real-disc qualification, collect *non-sensitive* evidence: source type, play
 
 ## Desktop CLI authored-media integration gate
 
-The Linux workflow now executes `scripts/test-bluray-desktop-cli.sh` after building the actual Go CLI and native libbluray navigator. It authors an unencrypted six-second BDMV folder and a UDF Blu-ray ISO using a checksum-pinned tsMuxer release, then exercises the **public** `muksmatt-cli bluray scan` and `bluray remux` entry points. Its coverage is distinct from the Android native C-core harness:
+The Linux workflow now executes `scripts/test-bluray-desktop-cli.sh` after building the actual Go CLI and native libbluray navigator. It authors an unencrypted 185-second BDMV folder and a UDF Blu-ray ISO using a checksum-pinned tsMuxer release (the separate Android C-core fixture remains six seconds), then exercises the **public** `muksmatt-cli bluray scan` and `bluray remux` entry points. Its coverage is distinct from the Android native C-core harness:
 
 - scan folder and ISO independently, discover the longest playlist through Go and native libbluray respectively;
 - remux both inputs to MKV, including video+audio, then perform explicit video-only and audio-only selections;
 - verify MPEG-2 stream copy, mandatory 24-bit LPCM-to-FLAC output, chapter preservation and `--no-chapters`;
 - hash all decoded source and output video frames and decoded 24-bit PCM samples, requiring exact parity;
 - verify an invalid stream selection fails without publishing an MKV.
+
+**Known FFmpeg limitation:** The desktop `bluray:` protocol enumerates only relevant playlists with a built-in 180-second minimum title length. This authored desktop fixture is deliberately 185 seconds; a playlist shorter than three minutes may still be discoverable with the muKsMaTT native navigator but fail in the FFmpeg remux path. Treat short-title remux as a separate open compatibility issue, not a validated feature. The native Android core does not use this `bluray:` protocol.
 
 The test is *not* genuine commercial disc, drive, Windows execution, AACS/BD+, or Android/ChromeOS device evidence. Record its CI run result separately from the real-media qualifications below; do not mark this gate passed until its workflow completes successfully.
 
