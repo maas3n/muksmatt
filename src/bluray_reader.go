@@ -97,9 +97,13 @@ func blurayInputArgs(source bluraySource, playlist blurayPlaylist) ([]string, er
 }
 
 type blurayStream struct {
-	Index int
-	Kind  string
-	Codec string
+	Index    int
+	Kind     string
+	Codec    string
+	PID      uint16 // MPEG-TS packet ID; zero if FFprobe did not supply an ID
+	Language string // ISO 639-2, never inferred from stream order
+	Title    string
+	Channels int
 }
 
 func parseBlurayProbe(data []byte) ([]blurayStream, error) {
@@ -119,7 +123,17 @@ func parseBlurayProbe(data []byte) ([]blurayStream, error) {
 			return nil, errors.New("Blu-ray probe contains invalid or duplicate stream indexes/codecs")
 		}
 		seen[stream.Index] = true
-		selected = append(selected, blurayStream{Index: stream.Index, Kind: stream.CodecType, Codec: stream.CodecName})
+		var pid uint16
+		if stream.ID != "" {
+			if value, err := strconv.ParseUint(stream.ID, 0, 13); err == nil && value > 0 && value < 8192 {
+				pid = uint16(value)
+			}
+		}
+		selected = append(selected, blurayStream{
+			Index: stream.Index, Kind: stream.CodecType, Codec: stream.CodecName,
+			PID: pid, Language: strings.ToLower(strings.TrimSpace(stream.Tags["language"])),
+			Title: strings.TrimSpace(stream.Tags["title"]), Channels: stream.Channels,
+		})
 	}
 	if len(selected) == 0 {
 		return nil, errors.New("no readable video/audio/subtitle streams; media may be encrypted or libaacs/libbdplus is not configured")
@@ -141,7 +155,17 @@ func probeBlurayPlaylist(ctx context.Context, tools toolPaths, source bluraySour
 	if err != nil {
 		return nil, fmt.Errorf("libbluray could not read playlist %05d (verify disc access and configured AACS/BD+ support): %w", playlist.Number, err)
 	}
-	return parseBlurayProbe(data)
+	streams, err := parseBlurayProbe(data)
+	if err != nil {
+		return nil, err
+	}
+	// libbluray can expose playlist stream languages even when FFprobe's
+	// bluray: protocol omits them. Do not fail remux if the older native
+	// companion is absent, or assign any language without an exact PID match.
+	if langs, langErr := nativeBlurayLanguages(ctx, source, playlist.Number); langErr == nil {
+		addBlurayLanguages(streams, langs)
+	}
+	return streams, nil
 }
 
 func selectedBlurayStreams(all []blurayStream, selected []int) ([]blurayStream, error) {
@@ -224,6 +248,7 @@ func blurayRemuxArgs(source bluraySource, playlist blurayPlaylist, streams []blu
 			audioIndex++
 		}
 	}
+	args = append(args, blurayMappedStreamMetadataArgs(streams)...)
 	args = append(args, "-f", "matroska", partial)
 	return args, nil
 }
