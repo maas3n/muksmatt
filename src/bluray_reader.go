@@ -100,6 +100,7 @@ type blurayStream struct {
 	Index    int
 	Kind     string
 	Codec    string
+	Profile  string
 	PID      uint16 // MPEG-TS packet ID; zero if FFprobe did not supply an ID
 	Language string // ISO 639-2, never inferred from stream order
 	Title    string
@@ -131,7 +132,7 @@ func parseBlurayProbe(data []byte) ([]blurayStream, error) {
 		}
 		selected = append(selected, blurayStream{
 			Index: stream.Index, Kind: stream.CodecType, Codec: stream.CodecName,
-			PID: pid, Language: strings.ToLower(strings.TrimSpace(stream.Tags["language"])),
+			Profile: stream.Profile, PID: pid, Language: strings.ToLower(strings.TrimSpace(stream.Tags["language"])),
 			Title: strings.TrimSpace(stream.Tags["title"]), Channels: stream.Channels,
 		})
 	}
