@@ -64,7 +64,6 @@ func createMergerWindowsControls(hwnd, hInstance uintptr) {
 	// the second row so the parenthetical behavior stays visible at normal DPI.
 	add("BUTTON", "MEDIA(All streams included)", BS_PUSHBUTTON, 28, 52, 240, 34, mergerFirstID)
 	add("BUTTON", "DVD DRIVE", BS_PUSHBUTTON, 276, 52, 240, 34, mergerFirstID+9)
-	add("BUTTON", "BLU-RAY BDMV / ISO", BS_PUSHBUTTON, 524, 52, 254, 34, mergerFirstID+10)
 	add("BUTTON", "ADD AUDIO(Only audio streams will be included)", BS_PUSHBUTTON, 28, 94, 370, 34, mergerFirstID+1)
 	add("BUTTON", "ADD SUBTITLE(Only subtitle streams will be Included)", BS_PUSHBUTTON, 408, 94, 370, 34, mergerFirstID+2)
 	add("STATIC", "Select Streams", 0, 28, 136, 750, 22, 0)
@@ -91,6 +90,7 @@ func createMergerWindowsControls(hwnd, hInstance uintptr) {
 	add("BUTTON", "MUX", BS_PUSHBUTTON, 488, 574, 180, 34, mergerFirstID+6)
 	mergerWindow.cancelBtn = add("BUTTON", "Cancel", BS_PUSHBUTTON, 680, 574, 98, 34, mergerFirstID+8)
 	procEnableWindow.Call(mergerWindow.cancelBtn, 0)
+	add("BUTTON", "BLU-RAY BDMV / ISO", BS_PUSHBUTTON, 524, 52, 254, 34, mergerFirstID+10)
 	createBatchWindowsControls(hwnd, hInstance)
 	createCLIWindowsControls(hwnd, hInstance)
 }
