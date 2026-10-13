@@ -52,6 +52,9 @@ func demuxMerger(ctx context.Context, tools toolPaths, selected []mergerStream, 
 	if len(selected) == 0 {
 		return "", errors.New("select at least one stream to demux")
 	}
+	if selectedBluRayMergerStreams(selected) {
+		return demuxMergerBluRay(ctx, selected, outputDir)
+	}
 	type group struct {
 		path     string
 		title    int
