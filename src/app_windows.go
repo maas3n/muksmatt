@@ -198,6 +198,7 @@ type titleInfo struct {
 type ffprobeResult struct {
 	Streams []struct {
 		Index         int               `json:"index"`
+		ID            string            `json:"id"`
 		CodecName     string            `json:"codec_name"`
 		CodecType     string            `json:"codec_type"`
 		Width         int               `json:"width"`
