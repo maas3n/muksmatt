@@ -49,20 +49,25 @@ func parseNativeBlurayLanguages(data []byte) (map[blurayLanguageKey]string, erro
 			return nil, fmt.Errorf("invalid Blu-ray stream language record")
 		}
 		pid, err := strconv.ParseUint(fields[2], 10, 13)
-		if err != nil || pid == 0 || pid >= 8192 || !validBlurayLanguage(fields[3]) {
+		lang := strings.ToLower(fields[3])
+		if err != nil || pid == 0 || pid >= 8192 || len(lang) != 3 {
 			return nil, fmt.Errorf("invalid Blu-ray PID or language record")
+		}
+		if lang == "und" { continue }
+		if !validBlurayLanguage(lang) {
+			return nil, errors.New("invalid Blu-ray stream language code")
 		}
 		kind := "audio"
 		if fields[1] == "s" {
 			kind = "subtitle"
 		}
 		key := blurayLanguageKey{kind: kind, pid: uint16(pid)}
-		if prev, present := result[key]; present && prev != fields[3] {
+		if prev, present := result[key]; present && prev != lang {
 			delete(result, key)
 			ambiguous[key] = true
 		}
 		if !ambiguous[key] {
-			result[key] = fields[3]
+			result[key] = lang
 		}
 	}
 	return result, nil
