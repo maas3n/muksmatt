@@ -15,8 +15,10 @@ import (
 )
 
 type mergerStream struct {
-	Path  string
-	Track trackOption
+	Path           string
+	Track          trackOption
+	BluRay         bool
+	BluRayPlaylist int
 }
 
 func probeMergerFile(ctx context.Context, probe, path, kind string) ([]mergerStream, error) {
@@ -157,6 +159,10 @@ func resolveMergerSelection(streams []mergerStream, override string) ([]mergerSt
 }
 
 func mergerArgs(streams []mergerStream, chapters, output string) ([]string, error) {
+	blurayPlaylists, err := mergerBluraySelections(streams)
+	if err != nil {
+		return nil, err
+	}
 	titles := map[string]int{}
 	for _, s := range streams {
 		if n, ok := titles[s.Path]; ok && n != s.Track.DVDTitle {
@@ -164,13 +170,26 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 		}
 		titles[s.Path] = s.Track.DVDTitle
 	}
-	input := func(args []string, path string) []string {
-		if titles[path] > 0 {
-			return appendDesktopDVDInput(args, titles[path], path)
+	input := func(args []string, path string) ([]string, error) {
+		if playlist, ok := blurayPlaylists[path]; ok {
+			source, err := resolveBluraySource(path)
+			if err != nil {
+				return nil, err
+			}
+			blurayArgs, err := blurayInputArgs(source, blurayPlaylist{Number: playlist})
+			if err != nil {
+				return nil, err
+			}
+			return append(args, blurayArgs...), nil
 		}
-		return appendDesktopMediaInput(args, path)
+		if titles[path] > 0 {
+			return appendDesktopDVDInput(args, titles[path], path), nil
+		}
+		if strings.HasPrefix(filepath.Base(path), ".muksmatt-bluray-chapters-") && strings.HasSuffix(path, ".ffmeta") {
+			return append(args, "-f", "ffmetadata", "-i", path), nil
+		}
+		return appendDesktopMediaInput(args, path), nil
 	}
-	var err error
 	streams, chapters, err = resolveMergerSelection(streams, chapters)
 	if err != nil {
 		return nil, err
@@ -186,7 +205,10 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 		}
 		if _, ok := inputs[s.Path]; !ok {
 			inputs[s.Path] = len(inputs)
-			args = input(args, s.Path)
+			args, err = input(args, s.Path)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	chapterIndex := -1
@@ -195,7 +217,10 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 			chapterIndex = index
 		} else {
 			chapterIndex = len(inputs)
-			args = input(args, chapters)
+			args, err = input(args, chapters)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	seen := map[string]bool{}
@@ -212,22 +237,40 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 	} else {
 		args = append(args, fmt.Sprint(chapterIndex))
 	}
-	return append(args, "-c", "copy", "-f", "matroska", output), nil
+	args = append(args, "-c", "copy")
+	for _, index := range mergerBlurayLPCMAudioIndexes(streams) {
+		args = append(args, fmt.Sprintf("-c:a:%d", index), "flac")
+	}
+	return append(args, "-f", "matroska", output), nil
 }
 
 func muxMerger(ctx context.Context, tools toolPaths, streams []mergerStream, chapters, output string) error {
 	movieChapters := chapters == ""
 	originalStreams := streams
+	containsBluRay := selectedBluRayMergerStreams(streams)
+	if containsBluRay {
+		var err error
+		tools, err = resolveBlurayTools(ctx)
+		if err != nil {
+			return err
+		}
+	}
 	dvdTitles := map[string]int{}
 	for _, s := range streams {
 		dvdTitles[s.Path] = s.Track.DVDTitle
 	}
 	for _, s := range streams {
 		if s.Track.DVDTitle > 0 {
-			var err error
-			tools, err = desktopCLITools(ctx, false)
-			if err != nil {
-				return err
+			if containsBluRay {
+				if err := checkDVDDemuxer(ctx, tools.ffmpeg); err != nil {
+					return fmt.Errorf("mixed DVD/Blu-ray merger requires FFmpeg with both protocols: %w", err)
+				}
+			} else {
+				var err error
+				tools, err = desktopCLITools(ctx, false)
+				if err != nil {
+					return err
+				}
 			}
 			break
 		}
@@ -238,6 +281,34 @@ func muxMerger(ctx context.Context, tools toolPaths, streams []mergerStream, cha
 		return selectionErr
 	}
 	if chapters != "" {
+		// Blu-ray MPLS chapter marks must be emitted as FFmetadata. The
+		// bluray: transport alone does not expose those chapters reliably.
+		for _, item := range originalStreams {
+			if item.BluRay && item.Track.Kind == "chapters" && item.Path == chapters {
+				_, playlist, err := guiBlurayPlaylist(ctx, item.Path, item.BluRayPlaylist)
+				if err != nil {
+					return err
+				}
+				if len(playlist.Chapters) == 0 {
+					return fmt.Errorf("selected Blu-ray playlist %05d has no chapters", playlist.Number)
+				}
+				chapterFile, err := os.CreateTemp(filepath.Dir(output), ".muksmatt-bluray-chapters-*.ffmeta")
+				if err != nil {
+					return err
+				}
+				defer os.Remove(chapterFile.Name())
+				if _, err := chapterFile.Write(blurayFFmetadata(playlist)); err != nil {
+					chapterFile.Close()
+					return err
+				}
+				if err := chapterFile.Close(); err != nil {
+					return err
+				}
+				chapters = chapterFile.Name()
+				movieChapters = false
+				break
+			}
+		}
 		if err := validateSelectedMergerChapters(ctx, tools.ffprobe, chapters, movieChapters, dvdTitles[chapters]); err != nil {
 			return err
 		}
