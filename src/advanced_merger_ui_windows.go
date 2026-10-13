@@ -62,8 +62,9 @@ func createMergerWindowsControls(hwnd, hInstance uintptr) {
 	// Keep the explanatory source labels readable without widening the main window.
 	// MEDIA and DVD DRIVE occupy the first row; the category-filtered additions use
 	// the second row so the parenthetical behavior stays visible at normal DPI.
-	add("BUTTON", "MEDIA(All streams included)", BS_PUSHBUTTON, 28, 52, 370, 34, mergerFirstID)
-	add("BUTTON", "DVD DRIVE", BS_PUSHBUTTON, 408, 52, 370, 34, mergerFirstID+9)
+	add("BUTTON", "MEDIA(All streams)", BS_PUSHBUTTON, 28, 52, 240, 34, mergerFirstID)
+	add("BUTTON", "DVD DRIVE", BS_PUSHBUTTON, 276, 52, 240, 34, mergerFirstID+9)
+	add("BUTTON", "BLU-RAY BDMV / ISO", BS_PUSHBUTTON, 524, 52, 254, 34, mergerFirstID+10)
 	add("BUTTON", "ADD AUDIO(Only audio streams will be included)", BS_PUSHBUTTON, 28, 94, 370, 34, mergerFirstID+1)
 	add("BUTTON", "ADD SUBTITLE(Only subtitle streams will be Included)", BS_PUSHBUTTON, 408, 94, 370, 34, mergerFirstID+2)
 	add("STATIC", "Select Streams", 0, 28, 136, 750, 22, 0)
@@ -198,6 +199,19 @@ func browseWindowsMergerMediaSources(owner uintptr) []string {
 	return nil
 }
 
+func browseWindowsMergerBluRaySources(owner uintptr) []string {
+	choice := messageBox(owner, "Add Blu-ray to ADVANCED", "Choose a Blu-ray source.\n\nYes: Blu-ray ISO file\nNo: BDMV folder / disc root\nCancel: return", 0x00000003|MB_ICONQUESTION)
+	switch choice {
+	case 6:
+		return browseMergerFiles(owner, false)
+	case 7:
+		if path := browseFolder(owner, "Choose Blu-ray disc root or BDMV folder"); path != "" {
+			return []string{path}
+		}
+	}
+	return nil
+}
+
 func runWindowsMerger(label string, work func(context.Context) (func(), error)) {
 	if !app.busy.CompareAndSwap(false, true) {
 		return
@@ -244,7 +258,7 @@ func handleWindowsMergerCommand(id int) bool {
 	if handleWindowsCLICommand(id) || handleWindowsBatchCommand(id) {
 		return true
 	}
-	if id < mergerFirstID || id > mergerFirstID+9 {
+	if id < mergerFirstID || id > mergerFirstID+10 {
 		return false
 	}
 	if id == mergerFirstID+8 {
@@ -283,7 +297,7 @@ func handleWindowsMergerCommand(id int) bool {
 				for _, s := range added {
 					duplicate := false
 					for _, old := range mergerWindow.streams {
-						if strings.EqualFold(old.Path, s.Path) && old.Track.Index == s.Track.Index {
+						if strings.EqualFold(old.Path, s.Path) && old.Track.Index == s.Track.Index && old.BluRay == s.BluRay && old.BluRayPlaylist == s.BluRayPlaylist {
 							duplicate = true
 						}
 					}
@@ -293,6 +307,37 @@ func handleWindowsMergerCommand(id int) bool {
 					idx := len(mergerWindow.streams)
 					mergerWindow.streams = append(mergerWindow.streams, s)
 					item := LVITEMW{Mask: LVIF_TEXT | LVIF_STATE, IItem: int32(idx), PszText: utf16Ptr(dvdSourceDisplayName(s.Path) + " — " + s.Track.Label()), State: 2 << 12, StateMask: LVIS_STATEIMAGEMASK}
+					procSendMessageW.Call(mergerWindow.list, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
+				}
+				setText(mergerWindow.status, fmt.Sprintf("%d streams available", len(mergerWindow.streams)))
+			}, nil
+		})
+	case 10:
+		paths := browseWindowsMergerBluRaySources(app.hwnd)
+		if len(paths) == 0 {
+			return true
+		}
+		path := paths[0]
+		runWindowsMerger("Reading Blu-ray playlist and streams…", func(ctx context.Context) (func(), error) {
+			added, err := probeMergerBluRay(ctx, path, "all")
+			if err != nil {
+				return nil, err
+			}
+			return func() {
+				for _, s := range added {
+					duplicate := false
+					for _, old := range mergerWindow.streams {
+						if strings.EqualFold(old.Path, s.Path) && old.Track.Index == s.Track.Index && old.BluRay && old.BluRayPlaylist == s.BluRayPlaylist {
+							duplicate = true
+						}
+					}
+					if duplicate {
+						continue
+					}
+					index := len(mergerWindow.streams)
+					mergerWindow.streams = append(mergerWindow.streams, s)
+					label := fmt.Sprintf("%s — Blu-ray playlist %05d — %s", dvdSourceDisplayName(s.Path), s.BluRayPlaylist, s.Track.Label())
+					item := LVITEMW{Mask: LVIF_TEXT | LVIF_STATE, IItem: int32(index), PszText: utf16Ptr(label), State: 2 << 12, StateMask: LVIS_STATEIMAGEMASK}
 					procSendMessageW.Call(mergerWindow.list, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
 				}
 				setText(mergerWindow.status, fmt.Sprintf("%d streams available", len(mergerWindow.streams)))
