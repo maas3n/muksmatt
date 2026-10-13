@@ -263,6 +263,12 @@ func verifyBlurayRemux(ctx context.Context, probe string, filename string, selec
 	if err != nil {
 		return err
 	}
+	return verifyBlurayRemuxStreams(got, selected)
+}
+
+// Verify the metadata that the remux command explicitly writes, in addition to
+// the streams themselves. Unknown source languages are deliberately not guessed.
+func verifyBlurayRemuxStreams(got, selected []blurayStream) error {
 	if len(got) != len(selected) {
 		return fmt.Errorf("Blu-ray remux stream count mismatch: got %d, expected %d", len(got), len(selected))
 	}
@@ -274,6 +280,16 @@ func verifyBlurayRemux(ctx context.Context, probe string, filename string, selec
 		if got[i].Kind != stream.Kind || !strings.EqualFold(got[i].Codec, want) {
 			return fmt.Errorf("Blu-ray stream %d mismatch: got %s/%s, expected %s/%s",
 				i, got[i].Kind, got[i].Codec, stream.Kind, want)
+		}
+		if validBlurayLanguage(stream.Language) && !strings.EqualFold(got[i].Language, stream.Language) {
+			return fmt.Errorf("Blu-ray stream %d language mismatch: got %q, expected %q",
+				i, got[i].Language, stream.Language)
+		}
+		if stream.Kind == "audio" || stream.Kind == "subtitle" {
+			if title := bluRayStreamDisplayTitle(stream); title != "" && got[i].Title != title {
+				return fmt.Errorf("Blu-ray stream %d title mismatch: got %q, expected %q",
+					i, got[i].Title, title)
+			}
 		}
 	}
 	return nil
