@@ -45,6 +45,7 @@ func probeMergerBluRay(ctx context.Context, path, kind string) ([]mergerStream, 
 			Path: source.Input,
 			Track: trackOption{
 				Index: stream.Index, Kind: stream.Kind, Codec: stream.Codec,
+				Language: stream.Language, Title: bluRayStreamDisplayTitle(stream), Channels: stream.Channels,
 			},
 			BluRay: true,
 			BluRayPlaylist: playlist.Number,
