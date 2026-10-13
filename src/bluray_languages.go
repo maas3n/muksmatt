@@ -115,6 +115,9 @@ func bluRayStreamDisplayTitle(stream blurayStream) string {
 		title = "LPCM (lossless FLAC in MKV)"
 	default:
 		title = strings.ToUpper(strings.ReplaceAll(stream.Codec, "_", " "))
+		if stream.Profile != "" && !strings.EqualFold(stream.Profile, "unknown") {
+			title = stream.Profile
+		}
 	}
 	if stream.Kind == "audio" && stream.Channels > 0 {
 		title += fmt.Sprintf(" (%d channels)", stream.Channels)
