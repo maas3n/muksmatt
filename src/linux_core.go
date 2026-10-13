@@ -41,6 +41,7 @@ type ffprobeResult struct {
 		Index         int               `json:"index"`
 		ID            string            `json:"id"`
 		CodecName     string            `json:"codec_name"`
+		Profile       string            `json:"profile"`
 		CodecType     string            `json:"codec_type"`
 		Width         int               `json:"width"`
 		Height        int               `json:"height"`
