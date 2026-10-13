@@ -182,3 +182,43 @@ func demuxMergerBluRay(ctx context.Context, selected []mergerStream, outputDir s
 	}
 	return final, nil
 }
+
+ 
+// Map selected Blu-ray metadata to the output stream ordinals. Keep all
+// existing DVD/MKV metadata untouched. Match remux deduplication by path+index.
+func mergerBlurayMetadataArgs(streams []mergerStream) []string {
+	seen := map[string]bool{}
+	audioIndex, subtitleIndex := 0, 0
+	var args []string
+	for _, item := range streams {
+		if item.Track.Kind == "chapters" {
+			continue
+		}
+		key := fmt.Sprintf("%s:%d", item.Path, item.Track.Index)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		var spec string
+		switch item.Track.Kind {
+		case "audio":
+			spec = fmt.Sprintf("a:%d", audioIndex)
+			audioIndex++
+		case "subtitle":
+			spec = fmt.Sprintf("s:%d", subtitleIndex)
+			subtitleIndex++
+		default:
+			continue
+		}
+		if !item.BluRay {
+			continue
+		}
+		if validBlurayLanguage(item.Track.Language) {
+			args = append(args, "-metadata:s:"+spec, "language="+item.Track.Language)
+		}
+		if item.Track.Title != "" {
+			args = append(args, "-metadata:s:"+spec, "title="+item.Track.Title)
+		}
+	}
+	return args
+}
