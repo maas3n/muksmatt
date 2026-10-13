@@ -30,7 +30,7 @@ type linuxSettings struct {
 type linuxGUI struct {
 	window                                                                     fyne.Window
 	sourceEntry, outputEntry                                                   *widget.Entry
-	titleSelect                                                                *widget.Select
+	titleSelect, sourceType                                                    *widget.Select
 	preserve                                                                   *widget.Check
 	progress                                                                   *widget.ProgressBar
 	status, trackSummary                                                       *widget.Label
@@ -80,7 +80,9 @@ func (g *linuxGUI) build() {
 		s.OutputDir = defaultLinuxOutputDir()
 	}
 	g.sourceEntry = widget.NewEntry()
-	g.sourceEntry.SetPlaceHolder("/path/to/DVD, disc.iso, or /dev/sr0")
+	g.sourceEntry.SetPlaceHolder("/path/to/VIDEO_TS, BDMV, disc.iso, .mkv or /dev/sr0")
+	g.sourceType = widget.NewSelect([]string{"DVD / MKV", "Blu-ray"}, func(string) { g.invalidateTitles() })
+	g.sourceType.SetSelected("DVD / MKV")
 	g.outputEntry = widget.NewEntry()
 	g.outputEntry.SetText(s.OutputDir)
 	g.titleSelect = widget.NewSelect(nil, func(string) { g.clearTrackSelection() })
@@ -92,9 +94,9 @@ func (g *linuxGUI) build() {
 	g.progress = widget.NewProgressBar()
 	g.status = widget.NewLabel("Checking installed FFmpeg / FFprobe / MediaInfo…")
 	g.status.Wrapping = fyne.TextWrapWord
-	g.dvdBtn = widget.NewButton("DVD Folder…", g.chooseDVDFolder)
+	g.dvdBtn = widget.NewButton("Disc Folder…", g.chooseDVDFolder)
 	g.isoBtn = widget.NewButton("ISO / MKV File…", g.chooseISO)
-	g.driveBtn = widget.NewButton("DVD Drive…", g.chooseDVDDrive)
+	g.driveBtn = widget.NewButton("Optical Drive…", g.chooseDVDDrive)
 	g.outputBtn = widget.NewButton("Browse…", g.chooseOutput)
 	g.scanBtn = widget.NewButton("SCAN/SELECT STREAMS", func() { g.startAsync("Scanning source and loading selectable streams…", g.scanSelectStreams) })
 	g.remuxBtn = widget.NewButton("REMUX", func() { g.startAsync("Preparing remux…", g.remux) })
@@ -105,14 +107,14 @@ func (g *linuxGUI) build() {
 	aboutBtn := widget.NewButton("About", g.showAbout)
 	g.sourceEntry.OnChanged = func(string) { g.invalidateTitles() }
 	g.outputEntry.OnChanged = func(string) { g.saveSettings() }
-	header := container.NewVBox(widget.NewLabelWithStyle("muKsMaTT", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), widget.NewLabel("Lossless DVD title remuxing to Matroska — video, audio, subtitles, chapters and metadata."))
-	sourceRow := container.NewBorder(nil, nil, nil, container.NewHBox(g.dvdBtn, g.isoBtn, g.driveBtn), g.sourceEntry)
+	header := container.NewVBox(widget.NewLabelWithStyle("muKsMaTT", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), widget.NewLabel("DVD / MKV and experimental Blu-ray remux and demux — select source type below."))
+	sourceRow := container.NewBorder(nil, nil, g.sourceType, container.NewHBox(g.dvdBtn, g.isoBtn, g.driveBtn), g.sourceEntry)
 	outputRow := container.NewBorder(nil, nil, nil, g.outputBtn, g.outputEntry)
 	titleRow := container.NewBorder(nil, nil, nil, container.NewHBox(g.scanBtn, aboutBtn), g.titleSelect)
-	timestampNotice := widget.NewLabel("Remux uses fixed timestamps (-fflags +genpts).")
+	timestampNotice := widget.NewLabel("DVD inputs use -fflags +genpts; this policy is not applied to MKV or Blu-ray.")
 	timestampNotice.Wrapping = fyne.TextWrapWord
 	actions := container.NewHBox(layout.NewSpacer(), g.remuxBtn, g.demuxBtn, g.cancelBtn)
-	dvdTab := container.NewPadded(container.NewVBox(header, widget.NewSeparator(), widget.NewLabelWithStyle("Source", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), sourceRow, widget.NewLabel("MEDIA: DRIVE / VIDEO_TS / ISO / MKV"), widget.NewSeparator(), widget.NewLabelWithStyle("Destination", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), outputRow, widget.NewSeparator(), widget.NewLabelWithStyle("DVD Title", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), titleRow, g.trackSummary, g.preserve, widget.NewSeparator(), g.progress, g.status, layout.NewSpacer(), timestampNotice, actions))
+	dvdTab := container.NewPadded(container.NewVBox(header, widget.NewSeparator(), widget.NewLabelWithStyle("Source", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), sourceRow, widget.NewLabel("MEDIA: DVD (VIDEO_TS / ISO / MKV) or Blu-ray (BDMV / ISO / optical drive)"), widget.NewSeparator(), widget.NewLabelWithStyle("Destination", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), outputRow, widget.NewSeparator(), widget.NewLabelWithStyle("DVD title / Blu-ray playlist", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}), titleRow, g.trackSummary, g.preserve, widget.NewSeparator(), g.progress, g.status, layout.NewSpacer(), timestampNotice, actions))
 	g.window.SetContent(container.NewAppTabs(container.NewTabItem("REMUX/DEMUX", dvdTab), container.NewTabItem("ADVANCED", g.buildAdvancedMerger()), container.NewTabItem("BATCH", g.buildBatch()), container.NewTabItem("CLI", g.buildCLI())))
 }
 
@@ -228,7 +230,7 @@ func (g *linuxGUI) setBusy(b bool) {
 	controls := []interface {
 		Disable()
 		Enable()
-	}{g.sourceEntry, g.outputEntry, g.titleSelect, g.preserve, g.scanBtn, g.remuxBtn, g.demuxBtn, g.dvdBtn, g.isoBtn, g.driveBtn, g.outputBtn}
+	}{g.sourceEntry, g.sourceType, g.outputEntry, g.titleSelect, g.preserve, g.scanBtn, g.remuxBtn, g.demuxBtn, g.dvdBtn, g.isoBtn, g.driveBtn, g.outputBtn}
 	for _, c := range controls {
 		if b {
 			c.Disable()
@@ -253,19 +255,28 @@ func (g *linuxGUI) cancelCurrent() {
 }
 
 func (g *linuxGUI) scan(ctx context.Context) error {
-	src, err := normalizeTabSource(g.sourceEntry.Text)
-	if err != nil {
-		return err
-	}
-	tools, err := ensureTools(ctx, isMKVSource(src), g.progressCallback())
-	if err != nil {
-		return err
-	}
+	var src string
+	var err error
 	var titles []titleInfo
-	if isMKVSource(src) {
-		titles, err = scanMKV(ctx, tools, src)
+	bluray := g.sourceType.Selected == "Blu-ray"
+	if bluray {
+		var source bluraySource
+		source, err = resolveBluraySource(g.sourceEntry.Text)
+		if err == nil {
+			src = source.Input
+			titles, err = guiBlurayPlaylists(ctx, src)
+		}
 	} else {
-		titles, err = discoverDVDTitlesViaDVDVideo(ctx, src, tools, g.progressCallback())
+		var tools toolPaths
+		src, err = normalizeTabSource(g.sourceEntry.Text)
+		if err == nil {
+			tools, err = ensureTools(ctx, isMKVSource(src), g.progressCallback())
+		}
+		if err == nil && isMKVSource(src) {
+			titles, err = scanMKV(ctx, tools, src)
+		} else if err == nil {
+			titles, err = discoverDVDTitlesViaDVDVideo(ctx, src, tools, g.progressCallback())
+		}
 	}
 	if err != nil {
 		return err
@@ -275,6 +286,9 @@ func (g *linuxGUI) scan(ctx context.Context) error {
 	selected := ""
 	for _, t := range titles {
 		label := fmt.Sprintf("Title %d — %s", t.Number, formatDuration(t.Duration))
+		if bluray {
+			label = fmt.Sprintf("Playlist %05d — %s", t.Number, formatDuration(t.Duration))
+		}
 		opts = append(opts, label)
 		if t.Number == best.Number {
 			selected = label
@@ -289,7 +303,7 @@ func (g *linuxGUI) scan(ctx context.Context) error {
 		g.titleSelect.Refresh()
 		g.titleSelect.SetSelected(selected)
 		g.progress.SetValue(1)
-		g.status.SetText(fmt.Sprintf("Found %d title(s). Selected title %d (%s) as the longest.", len(titles), best.Number, formatDuration(best.Duration)))
+		g.status.SetText(fmt.Sprintf("Found %d title(s)/playlist(s). Selected %d (%s) as the longest.", len(titles), best.Number, formatDuration(best.Duration)))
 	})
 	return nil
 }
@@ -305,12 +319,30 @@ func parseTitleLabel(label string) int {
 	return n
 }
 func (g *linuxGUI) selectedTitle() (string, titleInfo, error) {
-	src, err := normalizeTabSource(g.sourceEntry.Text)
+	var src string
+	var err error
+	n := parseTitleLabel(g.titleSelect.Selected)
+	if g.sourceType.Selected == "Blu-ray" {
+		var source bluraySource
+		source, err = resolveBluraySource(g.sourceEntry.Text)
+		if err == nil {
+			src = source.Input
+		}
+		if strings.HasPrefix(g.titleSelect.Selected, "Playlist ") {
+			fields := strings.Fields(g.titleSelect.Selected)
+			if len(fields) > 1 {
+				n, err = strconv.Atoi(fields[1])
+			}
+		} else {
+			return "", titleInfo{}, errors.New("click SCAN/SELECT STREAMS and choose a Blu-ray playlist first")
+		}
+	} else {
+		src, err = normalizeTabSource(g.sourceEntry.Text)
+	}
 	if err != nil {
 		return "", titleInfo{}, err
 	}
-	n := parseTitleLabel(g.titleSelect.Selected)
-	if n < 1 {
+	if n < 0 || (g.sourceType.Selected != "Blu-ray" && n < 1) {
 		return "", titleInfo{}, errors.New("click SCAN/SELECT STREAMS and choose a title first")
 	}
 	g.mu.Lock()
@@ -352,6 +384,20 @@ func (g *linuxGUI) showMetadata(ctx context.Context) error {
 }
 
 func (g *linuxGUI) showMetadataFor(ctx context.Context, src string, title titleInfo) error {
+	if g.sourceType.Selected == "Blu-ray" {
+		options, details, err := guiBlurayTracks(ctx, src, title.Number)
+		if err != nil {
+			return err
+		}
+		g.setTrackOptions(src, title.Number, options)
+		fyne.Do(func() {
+			g.updateTrackSummary(src, title.Number)
+			g.showTrackDialog(src, title, options, details)
+			g.progress.SetValue(1)
+			g.status.SetText(fmt.Sprintf("Blu-ray playlist %05d: select video/audio/subtitle tracks.", title.Number))
+		})
+		return nil
+	}
 	tools, err := ensureTools(ctx, true, g.progressCallback())
 	if err != nil {
 		return err
@@ -546,6 +592,18 @@ func (g *linuxGUI) remux(ctx context.Context) error {
 	if !hasSelection {
 		indexes = nil
 	}
+	if g.sourceType.Selected == "Blu-ray" {
+		g.progressCallback()(0.1, "Remuxing Blu-ray playlist (lossless LPCM to FLAC)…")
+		final, err := guiBlurayRemux(ctx, src, title.Number, out, indexes, g.preserve.Checked)
+		if err != nil {
+			return err
+		}
+		fyne.Do(func() {
+			g.progress.SetValue(1)
+			dialog.ShowInformation("Blu-ray remux complete", "Created:\n"+final, g.window)
+		})
+		return nil
+	}
 	tools, err := ensureTools(ctx, false, g.progressCallback())
 	if err != nil {
 		return err
@@ -658,6 +716,28 @@ func (g *linuxGUI) saveSettings() {
 }
 
 func (g *linuxGUI) chooseDemux() {
+	if g.sourceType.Selected == "Blu-ray" {
+		g.startAsync("Demuxing Blu-ray playlist…", func(ctx context.Context) error {
+			src, title, err := g.selectedTitle()
+			if err != nil {
+				return err
+			}
+			indexes, selected := g.selectedTrackIndexes(src, title.Number)
+			if !selected {
+				indexes = nil
+			}
+			final, err := guiBlurayDemux(ctx, src, title.Number, strings.TrimSpace(g.outputEntry.Text), indexes, g.preserve.Checked)
+			if err == nil {
+				fyne.Do(func() {
+					g.progress.SetValue(1)
+					g.status.SetText("Blu-ray demux complete: " + final)
+					dialog.ShowInformation("Blu-ray demux complete", final, g.window)
+				})
+			}
+			return err
+		})
+		return
+	}
 	format := widget.NewSelect([]string{"MPEG2 elementary video (.mpeg2)", "VOB video (.VOB)"}, nil)
 	format.SetSelectedIndex(0)
 	confirm := func(ok bool) {
