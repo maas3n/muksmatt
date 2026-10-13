@@ -80,7 +80,7 @@ func probeMergerFile(ctx context.Context, probe, path, kind string) ([]mergerStr
 		if t.Kind == "attachment" && t.Title == "" {
 			t.Title = raw.Tags["filename"]
 		}
-		streams = append(streams, mergerStream{inputPath, t})
+		streams = append(streams, mergerStream{Path: inputPath, Track: t})
 	}
 	if kind == "all" {
 		var chapters ffprobeChapterResult
@@ -88,7 +88,7 @@ func probeMergerFile(ctx context.Context, probe, path, kind string) ([]mergerStr
 			return nil, err
 		}
 		if len(chapters.Chapters) > 0 {
-			streams = append(streams, mergerStream{inputPath, trackOption{DVDTitle: title, Index: -1, Kind: "chapters", Title: fmt.Sprintf("%d chapters", len(chapters.Chapters))}})
+			streams = append(streams, mergerStream{Path: inputPath, Track: trackOption{DVDTitle: title, Index: -1, Kind: "chapters", Title: fmt.Sprintf("%d chapters", len(chapters.Chapters))}})
 		}
 	}
 	if len(streams) == 0 {
