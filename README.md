@@ -54,7 +54,7 @@ To launch the Linux Standalone, make it executable first: `chmod +x muKsMaTT-0.1
 - [Published v0.1.0-beta.1 prerelease](https://github.com/maas3n/muksmatt/releases/tag/v0.1.0-beta.1) — signed Android APK, Linux and Windows packages, sources, notices, and SHA-256 checksums.
 - [Public beta release notes](docs/releases/v0.1.0-beta.1.md) and [community testing guide](docs/releases/v0.1.0-beta.1-testing.md) — known limitations and reporting instructions.
 
-The public beta uses **versioned asset filenames** (for example, `muKsMaTT-0.1.0-beta.1-Android.apk`). Use the exact versioned links below for both browser and command-line downloads; `releases/latest/download/` does not target this GitHub prerelease. The portable Windows executable and CLI use lowercase `muksmatt.exe` and `muksmatt-cli.exe`.
+The public beta uses **versioned asset filenames** (for example, `muKsMaTT-0.1.0-beta.1-Android.apk`). Use the versioned links in the download section above for both browser and command-line downloads; `releases/latest/download/` does not target this GitHub prerelease. The portable Windows executable and CLI use lowercase `muksmatt.exe` and `muksmatt-cli.exe`.
 
 ## What muKsMaTT can do
 
