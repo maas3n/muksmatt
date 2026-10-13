@@ -82,11 +82,11 @@ func (g *linuxGUI) build() {
 	g.sourceEntry = widget.NewEntry()
 	g.sourceEntry.SetPlaceHolder("/path/to/VIDEO_TS, BDMV, disc.iso, .mkv or /dev/sr0")
 	g.sourceType = widget.NewSelect([]string{"DVD / MKV", "Blu-ray"}, func(string) { g.invalidateTitles() })
-	g.sourceType.SetSelected("DVD / MKV")
 	g.outputEntry = widget.NewEntry()
 	g.outputEntry.SetText(s.OutputDir)
 	g.titleSelect = widget.NewSelect(nil, func(string) { g.clearTrackSelection() })
 	g.titleSelect.PlaceHolder = "Scan/select streams first"
+	g.sourceType.SetSelected("DVD / MKV")
 	g.trackSummary = widget.NewLabel("Tracks: all streams (default)")
 	g.trackSummary.Wrapping = fyne.TextWrapWord
 	g.preserve = widget.NewCheck("Include chapters in remux / demux", func(bool) { g.saveSettings() })
