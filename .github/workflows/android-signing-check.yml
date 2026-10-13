@@ -12,7 +12,7 @@ jobs:
     environment: android-release
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java 17
         uses: actions/setup-java@v5
@@ -38,7 +38,7 @@ jobs:
     environment: android-play
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java 17
         uses: actions/setup-java@v5
