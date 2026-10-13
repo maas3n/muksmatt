@@ -1,53 +1,39 @@
-# Google Play Console setup
+# muKsMaTT — Google Play preparation (not published)
 
-## App identity
+**muKsMaTT v0.1.0-beta.1 is a public GitHub prerelease APK, not a Google Play release.** Play Store listing, purchase verification and production rollout still require separate decisions and validation. Do not confuse upstream MattRip settings with muKsMaTT.
 
-- App name: `MattRip`
-- Application ID: `io.github.maas3n.mattrip`
-- Primary device target: Chromebook / ChromeOS Android runtime
-- Current target SDK: Android 16 / API 36
+## Android application identity
 
-The application ID becomes permanent after the first Play publication. Confirm it before creating the production listing.
+- App name: **muKsMaTT**
+- Application ID: **`io.github.maas3n.muksmatt`** (verified in `android/app/build.gradle.kts`)
+- Min SDK: Android 8.0 / API 26
+- Target SDK: API 36
+- Supported native ABIs: `arm64-v8a` and `x86_64`
+- ChromeOS: requires the Android application environment
 
-## Monetization
+The application ID is distinct from MattRip and MattMux. Confirm it before creating a production Play listing; after launch the installed-app identity is difficult to change.
 
-Create a one-time product:
+## Current billing status
 
-- Product ID: `mattrip_pro`
-- Type: one-time, non-consumable
-- Suggested initial price: EUR 5.99, with Play-managed local pricing as desired
+The code currently includes a Google Play Billing dependency, but `BuildConfig.ENABLE_BILLING_PURCHASES = false`. **Purchases are deliberately disabled in the public beta.**
 
-The app uses Google Play Billing and restores the entitlement with `queryPurchasesAsync()`.
+Some inherited MattRip implementation/documentation uses the historical product identifier `mattrip_pro`. **Do not register, advertise, or charge users for that inherited SKU as though it were an authorized muKsMaTT product.** Choose and verify a distinct muKsMaTT product strategy, update and test the application consistently, and implement server-side purchase-token verification before enabling any monetization. Any pricing and rollout require separate approval.
 
-Before production, add server-side purchase-token verification using the Google Play Developer API. The current client-side entitlement flow is suitable for development/internal testing but is not strong anti-tamper protection for a paid open-source client.
+## App-signing and upload keys
 
-## Testing order
+muKsMaTT maintains **two distinct signing identities** documented in [SIGNING.md](SIGNING.md):
 
-1. Create the app in Play Console using `io.github.maas3n.mattrip`.
-2. Upload an Android App Bundle to Internal testing.
-3. Create and activate `mattrip_pro`.
-4. Add license tester accounts.
-5. Verify product query, purchase, pending purchase, cancellation, restore on reinstall, and acknowledgement.
-6. Enable `BuildConfig.ENABLE_BILLING_PURCHASES` only after the native remux engine passes Chromebook tests.
-7. Move through closed testing and production when Play account requirements are satisfied.
+- The **app-signing key** signs the public GitHub APK. Google Play App Signing must use the corresponding public app-signing certificate if Play-delivered APKs are to be update-compatible with direct GitHub APKs.
+- The **upload key** signs Play AAB uploads only; it is not the final installed-app signing identity.
 
-## Chromebook checks
+For future enrollment, follow the current Play Console key import process. Confirm that the Play **app signing certificate SHA-256** equals `ANDROID_APP_SIGNING_CERT_SHA256` and that the **upload certificate SHA-256** equals `ANDROID_UPLOAD_CERT_SHA256`. A mismatch is a release blocker. Never upload keys or credentials to GitHub issues or documentation.
 
-Use Play Console Device catalog to confirm Chromebook availability. Test at minimum one x86_64 Chromebook and one arm64 Chromebook if the native remux engine ships both ABIs.
+## Future Play validation
 
+1. Confirm application ID, signing identities, supported devices, privacy documentation, legal/distribution compliance and the current Google Play requirements.
+2. Generate the Play AAB only through the authorized, separately signed **Android / ChromeOS Play bundle** workflow.
+3. Test app startup, DVD and experimental Blu-ray behavior on actual Android phones and Chromebooks. CSS is intentionally **disabled** in the Play variant.
+4. If billing is ever authorized, design a new product configuration, server-side verification, and tests for pending, failed, restored and acknowledged purchases.
+5. Use internal and closed testing before any public rollout. This GitHub beta does not authorize charging customers or publishing to Play.
 
-## Signing identity
-
-Before the first Play publication, configure the two-key model in [SIGNING.md](SIGNING.md).
-
-- **MattRip app-signing key**: the long-lived certificate used for direct GitHub APKs and the app-signing identity that Play App Signing must use.
-- **MattRip upload key**: a separate key used only to sign AAB uploads to Play.
-
-For a new Play app, use the current Play Console flow that lets you provide MattRip's existing app-signing key instead of accepting an unrelated Play-generated identity. Then register the separate MattRip upload certificate.
-
-Verify in Play Console that:
-
-- the app signing certificate SHA-256 equals the repository Actions variable `ANDROID_APP_SIGNING_CERT_SHA256`;
-- the upload certificate SHA-256 equals `ANDROID_UPLOAD_CERT_SHA256`.
-
-If those fingerprints do not match, do not publish. A Play build signed under a different app-signing identity would not be update-compatible with direct MattRip APKs.
+The relevant release-policy overview is in [RELEASING.md](../RELEASING.md).

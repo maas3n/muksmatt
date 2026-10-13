@@ -1,6 +1,6 @@
 # muKsMaTT Android release signing
 
-> This is a **new application identity**, independent of MattRip. **No muKsMaTT production APK has been published.** Generate new keys only when ready to configure the protected environments; never upload private keys, keystore Base64 or passwords to a pull request, README or issue. The Unified release workflow stays disabled until authorization.
+> muKsMaTT is a **separate application identity** from MattRip and MattMux. The first persistently signed public APK was published as part of [v0.1.0-beta.1](https://github.com/maas3n/muksmatt/releases/tag/v0.1.0-beta.1) on 13 October 2026. **Preserve the existing muKsMaTT production app-signing key** for all updates: never generate a replacement key for an already-distributed application. Never upload keystores, Base64 material or passwords to a PR, README or issue. The Unified release workflow requires explicit per-release authorization.
 
 
 muKsMaTT uses **two distinct Android private keys**:
@@ -47,7 +47,7 @@ Back up both private keystores and their passwords securely. The **app-signing k
 
 ## GitHub configuration
 
-Use protected GitHub Environments so the two private keys are scoped separately. For the two keys generated on October 10, 2026, run the setup script from the existing local clone:
+Use protected GitHub Environments so the two private keys are scoped separately. For initial configuration or recovery using the **existing** muKsMaTT keys created on 10 October 2026, the setup script can be run from the existing local clone:
 
 ```bash
 cd "$HOME/muksmatt-signing-setup"
@@ -149,9 +149,9 @@ app-signing keystore and passwords listed above, and configure the matching
 `ANDROID_APP_SIGNING_CERT_SHA256` variable. Do not generate a replacement key
 for an already distributed app. **Do not dispatch Unified release as part of signing setup.** After separate publication authorization, the repository opt-in variable `MUKSMATT_RELEASE_ENABLED=true` and manual `confirm_publish=true` are both required to publish. The workflow never publishes an unsigned fallback.
 
-Both numbered releases and main snapshots now use Android version code
+Both numbered releases and main snapshots use Android version code
 `1000000000 + GITHUB_RUN_NUMBER` from the **same Unified release workflow**.
-This inherited migration sequence was designed for the upstream project; muKsMaTT has not yet published a signed app. Verify the chosen first muKsMaTT versionCode before releasing, then preserve it for future updates. Do not reset this counter
+The first muKsMaTT beta APK has been distributed; preserve monotonically increasing version codes for later updates. Do not reset this counter
 or restore the former semantic-version formula. Rerunning a workflow retains
 its version code. Play bundles must use the corresponding GitHub APK's version
 code; do not allocate an independent higher sequence in the Play workflow.

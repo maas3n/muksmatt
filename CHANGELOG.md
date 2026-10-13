@@ -1,6 +1,21 @@
 # Changelog
 
+muKsMaTT has its **own version namespace** beginning with `v0.1.0-beta.1`. The older MattRip/MattMux notes below are preserved as upstream development history, **not** as muKsMaTT releases.
+
 ## Unreleased
+
+No entries yet.
+
+## v0.1.0-beta.1 — 2026-10-13 (public GitHub prerelease)
+
+- First unified **muKsMaTT** public beta with Windows (All-in-One, Setup, Portable), Linux (Standalone, Debian package, tarball) and a dedicated signed Android/ChromeOS APK; includes per-platform and combined SHA-256 manifests.
+- Retain the established DVD folder/ISO remux and demux paths, DVD CSS support for applicable direct GitHub builds, MKV demux, Advanced Merger stream selection, batch DVD remux and CLI workflows.
+- Add **experimental Blu-ray** support as separate desktop CLI `bluray scan` / `bluray remux` workflows for BDMV, ISO and readable optical-device sources, with playlist selection, chapters, explicit stream mapping and lossless LPCM-to-FLAC conversion.
+- Include experimental native Android Blu-ray BDMV/ISO access and remux via SAF. Device compatibility, GUI integration, USB optical-drive support and AACS/BD+ decryption **are not validated** by CI.
+- Test Windows, Linux and signed Android startup/remux paths, including API 26 and API 35 4 KB/16 KB Android emulators, against **self-authored unencrypted media**; physical Blu-ray drives and protected/commercial discs require community validation.
+- Publish with protected `v*` tags, a staged private draft, package completeness checks and SHA-256 verification before publication. Release tags/assets are immutable; future fixes require a new version.
+
+### Changes inherited or integrated while preparing the first beta
 
 - Android ADVANCED now scans DVD folder/ISO streams and chapters without preparing an MKV. DEMUX reads the original DVD directly; temporary DVD MKVs are created only for MUX, with stream-index validation and cleanup on staging failure. Windows/Linux retain their shared direct-DVD MUX/DEMUX paths.
 
@@ -16,6 +31,10 @@
 - Pin the expected SHA-256 certificate for each Android signing identity and verify the final APK/AAB certificate before publication.
 - Add protected `android-release` / `android-play` signing environments, a lightweight signing self-test workflow, throwaway-key CI regressions, safe key-generation tooling, and release-signing documentation.
 
+
+## Historical upstream development notes (MattRip / MattMux)
+
+The following entries predate the muKsMaTT public release and retain their original legacy release numbers and implementation terms for traceability. These are **not** downloadable muKsMaTT releases.
 
 ## 1.5.0 - 2026-10-04
 
