@@ -146,7 +146,24 @@ func normalizeSource(p string) (string, error) {
 	return src.Input, nil
 }
 
-func currentSource() (string, error) { return normalizeTabSource(getText(app.sourceEdit)) }
+func windowsBlurayMode() bool {
+	if app.sourceTypeCombo == 0 {
+		return false
+	}
+	index, _, _ := procSendMessageW.Call(app.sourceTypeCombo, CB_GETCURSEL, 0, 0)
+	return index == 1
+}
+
+func currentSource() (string, error) {
+	if windowsBlurayMode() {
+		source, err := resolveBluraySource(getText(app.sourceEdit))
+		if err != nil {
+			return "", err
+		}
+		return source.Input, nil
+	}
+	return normalizeTabSource(getText(app.sourceEdit))
+}
 func selectedTitle() (titleInfo, error) {
 	idx, _, _ := procSendMessageW.Call(app.titleCombo, CB_GETCURSEL, 0, 0)
 	if int32(idx) < 0 {
