@@ -61,8 +61,10 @@ func guiBlurayTracks(ctx context.Context, path string, playlistID int) ([]trackO
 	var details strings.Builder
 	fmt.Fprintf(&details, "Blu-ray playlist %05d\nDuration: %s\nChapters: %d\n\n", playlist.Number, playlist.Duration(), len(playlist.Chapters))
 	for _, stream := range streams {
-		options = append(options, trackOption{Index: stream.Index, Kind: stream.Kind, Codec: stream.Codec})
-		fmt.Fprintf(&details, "%s #%d: %s\n", stream.Kind, stream.Index, stream.Codec)
+		options = append(options, trackOption{Index: stream.Index, Kind: stream.Kind, Codec: stream.Codec, Language: stream.Language, Title: bluRayStreamDisplayTitle(stream), Channels: stream.Channels})
+		fmt.Fprintf(&details, "%s #%d: %s", stream.Kind, stream.Index, bluRayStreamDisplayTitle(stream))
+		if validBlurayLanguage(stream.Language) { fmt.Fprintf(&details, " [%s]", stream.Language) }
+		details.WriteString("\n")
 	}
 	details.WriteString("\nBlu-ray LPCM tracks are converted to lossless FLAC when remuxed. Other compatible tracks are copied. Blu-ray decryption and real physical drives are still experimental.\n")
 	return options, details.String(), nil
