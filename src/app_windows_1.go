@@ -141,19 +141,23 @@ func createControls(hwnd, hInstance uintptr) {
 		return c
 	}
 	add(0, "STATIC", "muKsMaTT", WS_CHILD|WS_VISIBLE, 28, 22, 300, 42, 0, app.headerFont)
-	add(0, "STATIC", "Lossless DVD title remuxing to Matroska — video, audio, subtitles, chapters and metadata.", WS_CHILD|WS_VISIBLE, 30, 64, 750, 24, 0, app.bodyFont)
+	add(0, "STATIC", "DVD / MKV and experimental Blu-ray remux and demux — choose a source type below.", WS_CHILD|WS_VISIBLE, 30, 64, 750, 24, 0, app.bodyFont)
 	add(0, "BUTTON", "Source", WS_CHILD|WS_VISIBLE|BS_GROUPBOX, 22, 102, 770, 112, 0, app.bodyFont)
-	add(0, "STATIC", "MEDIA: DRIVE / VIDEO_TS / ISO / MKV", WS_CHILD|WS_VISIBLE, 38, 127, 320, 22, 0, app.bodyFont)
+	add(0, "STATIC", "MEDIA: DVD (VIDEO_TS / ISO / MKV) or Blu-ray (BDMV / ISO / drive)", WS_CHILD|WS_VISIBLE, 38, 127, 665, 22, 0, app.bodyFont)
 	app.sourceEdit = add(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD|WS_VISIBLE|WS_TABSTOP|ES_AUTOHSCROLL, 38, 150, 392, 28, idSourceEdit, app.bodyFont)
-	app.sourceDVDButton = add(0, "BUTTON", "DVD Folder…", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 442, 148, 100, 31, idDVDButton, app.bodyFont)
+	app.sourceDVDButton = add(0, "BUTTON", "Disc Folder…", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 442, 148, 100, 31, idDVDButton, app.bodyFont)
 	app.sourceISOButton = add(0, "BUTTON", "ISO / MKV…", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 550, 148, 96, 31, idISOButton, app.bodyFont)
-	app.sourceDriveButton = add(0, "BUTTON", "DVD Drive…", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 654, 148, 116, 31, idDriveButton, app.bodyFont)
-	add(0, "STATIC", "Choose a DVD folder, ISO/MKV file, physical DVD drive, or drag a folder/file here.", WS_CHILD|WS_VISIBLE, 38, 184, 590, 20, 0, app.bodyFont)
+	app.sourceDriveButton = add(0, "BUTTON", "Optical Drive…", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 654, 148, 116, 31, idDriveButton, app.bodyFont)
+	app.sourceTypeCombo = add(0, "COMBOBOX", "", WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL, 38, 184, 240, 140, idSourceType, app.bodyFont)
+	for _, option := range []string{"DVD / MKV", "Blu-ray"} {
+		procSendMessageW.Call(app.sourceTypeCombo, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16Ptr(option))))
+	}
+	procSendMessageW.Call(app.sourceTypeCombo, CB_SETCURSEL, 0, 0)
 	add(0, "BUTTON", "Destination", WS_CHILD|WS_VISIBLE|BS_GROUPBOX, 22, 224, 770, 94, 0, app.bodyFont)
 	add(0, "STATIC", "Output folder", WS_CHILD|WS_VISIBLE, 38, 249, 120, 22, 0, app.bodyFont)
 	app.outputEdit = add(WS_EX_CLIENTEDGE, "EDIT", "", WS_CHILD|WS_VISIBLE|WS_TABSTOP|ES_AUTOHSCROLL, 38, 272, 622, 28, idOutputEdit, app.bodyFont)
 	app.outputButton = add(0, "BUTTON", "Browse…", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 674, 270, 96, 31, idOutputBtn, app.bodyFont)
-	add(0, "BUTTON", "DVD Title", WS_CHILD|WS_VISIBLE|BS_GROUPBOX, 22, 328, 770, 101, 0, app.bodyFont)
+	add(0, "BUTTON", "DVD title / Blu-ray playlist", WS_CHILD|WS_VISIBLE|BS_GROUPBOX, 22, 328, 770, 101, 0, app.bodyFont)
 	add(0, "STATIC", "Title", WS_CHILD|WS_VISIBLE, 38, 354, 45, 22, 0, app.bodyFont)
 	app.titleCombo = add(0, "COMBOBOX", "", WS_CHILD|WS_VISIBLE|WS_TABSTOP|CBS_DROPDOWNLIST|WS_VSCROLL, 82, 349, 355, 250, idTitleCombo, app.bodyFont)
 	app.scanBtn = add(0, "BUTTON", "SCAN/SELECT STREAMS", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 452, 348, 218, 32, idScanBtn, app.bodyFont)
@@ -162,7 +166,7 @@ func createControls(hwnd, hInstance uintptr) {
 	app.progress = add(0, "msctls_progress32", "", WS_CHILD|WS_VISIBLE, 28, 450, 764, 16, 0, app.bodyFont)
 	procSendMessageW.Call(app.progress, PBM_SETRANGE32, 0, 1000)
 	app.statusText = add(0, "STATIC", "", WS_CHILD|WS_VISIBLE, 30, 474, 755, 42, 0, app.bodyFont)
-	add(0, "STATIC", "Remux uses fixed timestamps (-fflags +genpts).", WS_CHILD|WS_VISIBLE, 30, 516, 480, 18, 0, app.bodyFont)
+	add(0, "STATIC", "DVD uses +genpts; Blu-ray and MKV do not.", WS_CHILD|WS_VISIBLE, 30, 516, 480, 18, 0, app.bodyFont)
 	app.remuxBtn = add(0, "BUTTON", "REMUX", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_DEFPUSHBUTTON, 396, 535, 132, 38, idRemuxBtn, app.bodyFont)
 	app.demuxBtn = add(0, "BUTTON", "DEMUX", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 538, 535, 132, 38, idDemuxBtn, app.bodyFont)
 	app.cancelBtn = add(0, "BUTTON", "Cancel", WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_PUSHBUTTON, 680, 535, 110, 38, idCancelBtn, app.bodyFont)
@@ -223,6 +227,11 @@ func windowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 		}
 		notify := uint16((wParam >> 16) & 0xffff)
 		switch id {
+		case idSourceType:
+			if notify == 1 && !app.busy.Load() {
+				app.invalidateTitles()
+				setStatus("Source type changed. Click SCAN/SELECT STREAMS.")
+			}
 		case idSourceEdit:
 			if notify == EN_CHANGE && !app.busy.Load() {
 				app.invalidateTitles()
