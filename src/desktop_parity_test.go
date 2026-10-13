@@ -70,7 +70,7 @@ func TestDesktopBatchISOSiblingAndNoOverwrite(t *testing.T) {
 	}
 }
 func TestMergerKeepsSelectedDVDTitle(t *testing.T) {
-	streams := []mergerStream{{"disc.iso", trackOption{DVDTitle: 2, Index: 0, Kind: "video"}}, {"disc.iso", trackOption{DVDTitle: 2, Index: -1, Kind: "chapters"}}, {"audio.ac3", trackOption{Index: 0, Kind: "audio"}}}
+	streams := []mergerStream{{Path: "disc.iso", Track: trackOption{DVDTitle: 2, Index: 0, Kind: "video"}}, {Path: "disc.iso", Track: trackOption{DVDTitle: 2, Index: -1, Kind: "chapters"}}, {Path: "audio.ac3", Track: trackOption{Index: 0, Kind: "audio"}}}
 	args, err := mergerArgs(streams, "", "out.mkv")
 	if err != nil {
 		t.Fatal(err)
