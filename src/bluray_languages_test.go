@@ -89,3 +89,47 @@ func TestAdvancedMergerBlurayTrackLanguagesRespectOutputOrder(t *testing.T) {
 	}
 	if strings.Contains(flags, "language=ita") {t.Fatalf("ordinary source should retain original tags: %s",flags)}
 }
+
+func TestVerifyBlurayRemuxStreamsMetadata(t *testing.T) {
+	selected := []blurayStream{
+		{Index: 0, Kind: "video", Codec: "h264"},
+		{Index: 1, Kind: "audio", Codec: "dts", Profile: "DTS-HD MA", Language: "eng", Channels: 6},
+		{Index: 2, Kind: "audio", Codec: "pcm_bluray", Language: "fra", Channels: 2},
+		{Index: 3, Kind: "subtitle", Codec: "hdmv_pgs_subtitle", Language: "nor"},
+		{Index: 4, Kind: "subtitle", Codec: "hdmv_pgs_subtitle"}, // unknown language remains unknown
+	}
+	output := []blurayStream{
+		{Index: 0, Kind: "video", Codec: "h264"},
+		{Index: 1, Kind: "audio", Codec: "dts", Language: "eng", Title: "DTS-HD MA (6 channels)"},
+		{Index: 2, Kind: "audio", Codec: "flac", Language: "fra", Title: "LPCM (lossless FLAC in MKV) (2 channels)"},
+		{Index: 3, Kind: "subtitle", Codec: "hdmv_pgs_subtitle", Language: "nor", Title: "PGS subtitles"},
+		{Index: 4, Kind: "subtitle", Codec: "hdmv_pgs_subtitle", Language: "und", Title: "PGS subtitles"},
+	}
+	if err := verifyBlurayRemuxStreams(output, selected); err != nil {
+		t.Fatalf("correctly tagged MKV must pass: %v", err)
+	}
+	cases := []struct {
+		name string
+		index int
+		change func(*blurayStream)
+		want string
+	}{
+		{"missing audio language", 1, func(s *blurayStream) { s.Language = "" }, "language mismatch"},
+		{"incorrect subtitle language", 3, func(s *blurayStream) { s.Language = "eng" }, "language mismatch"},
+		{"missing descriptive audio title", 1, func(s *blurayStream) { s.Title = "" }, "title mismatch"},
+		{"incorrect subtitle title", 3, func(s *blurayStream) { s.Title = "Other" }, "title mismatch"},
+		{"LPCM not converted to FLAC", 2, func(s *blurayStream) { s.Codec = "pcm_bluray" }, "mismatch"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mutated := append([]blurayStream(nil), output...)
+			tc.change(&mutated[tc.index])
+			if err := verifyBlurayRemuxStreams(mutated, selected); err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("expected %q, got %v", tc.want, err)
+			}
+		})
+	}
+	if err := verifyBlurayRemuxStreams(output[:len(output)-1], selected); err == nil || !strings.Contains(err.Error(), "stream count mismatch") {
+		t.Fatalf("expected stream-count failure, got %v", err)
+	}
+}
