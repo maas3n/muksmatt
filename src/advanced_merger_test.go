@@ -15,7 +15,7 @@ import (
 )
 
 func TestMergerExplicitMaps(t *testing.T) {
-	streams := []mergerStream{{"one.mkv", trackOption{Index: 2, Kind: "video"}}, {"two.mp4", trackOption{Index: 1, Kind: "audio"}}, {"one.mkv", trackOption{Index: 5, Kind: "subtitle"}}}
+	streams := []mergerStream{{Path: "one.mkv", Track: trackOption{Index: 2, Kind: "video"}}, {Path: "two.mp4", Track: trackOption{Index: 1, Kind: "audio"}}, {Path: "one.mkv", Track: trackOption{Index: 5, Kind: "subtitle"}}}
 	args, err := mergerArgs(streams, "chapters.txt", "out.mkv")
 	if err != nil {
 		t.Fatal(err)
@@ -230,9 +230,9 @@ func TestMergerRawVideo(t *testing.T) {
 }
 
 func TestMergerChapterSelection(t *testing.T) {
-	media := mergerStream{"movie.mkv", trackOption{Index: 0, Kind: "video"}}
-	one := mergerStream{"one.mkv", trackOption{Index: -1, Kind: "chapters"}}
-	two := mergerStream{"two.mkv", trackOption{Index: -1, Kind: "chapters"}}
+	media := mergerStream{Path: "movie.mkv", Track: trackOption{Index: 0, Kind: "video"}}
+	one := mergerStream{Path: "one.mkv", Track: trackOption{Index: -1, Kind: "chapters"}}
+	two := mergerStream{Path: "two.mkv", Track: trackOption{Index: -1, Kind: "chapters"}}
 	if _, _, err := resolveMergerSelection([]mergerStream{media, one, two}, ""); err == nil {
 		t.Fatal("ambiguous chapter sets accepted")
 	}
