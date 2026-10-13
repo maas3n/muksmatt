@@ -87,7 +87,12 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 			}
 			var added []mergerStream
 			for _, p := range paths {
-				ss, err := probeMergerFile(ctx, tools.ffprobe, p, kind)
+				var ss []mergerStream
+				if kind == "bluray" {
+					ss, err = probeMergerBluRay(ctx, p, "all")
+				} else {
+					ss, err = probeMergerFile(ctx, tools.ffprobe, p, kind)
+				}
 				if err != nil {
 					return nil, err
 				}
@@ -97,7 +102,7 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 				for _, s := range added {
 					duplicate := false
 					for _, existing := range streams {
-						if existing.Path == s.Path && existing.Track.Index == s.Track.Index {
+						if existing.Path == s.Path && existing.Track.Index == s.Track.Index && existing.BluRay == s.BluRay && existing.BluRayPlaylist == s.BluRayPlaylist {
 							duplicate = true
 						}
 					}
@@ -150,9 +155,18 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 		scroll.SetMinSize(fyne.NewSize(600, 320))
 		var chooser *dialog.ConfirmDialog
 		actions := container.NewHBox(widget.NewButton("Open folder", refresh))
-		if kind == "all" {
-			actions.Add(widget.NewButton("Add current folder as DVD / VIDEO_TS", func() {
-				if _, err := resolveDVDSource(dir.Text); err != nil {
+		if kind == "all" || kind == "bluray" {
+			folderLabel := "Add current folder as DVD / VIDEO_TS"
+			if kind == "bluray" {
+				folderLabel = "Add current folder as Blu-ray / BDMV"
+			}
+			actions.Add(widget.NewButton(folderLabel, func() {
+				if kind == "bluray" {
+					if _, err := resolveBluraySource(dir.Text); err != nil {
+						dialog.ShowError(err, g.window)
+						return
+					}
+				} else if _, err := resolveDVDSource(dir.Text); err != nil {
 					dialog.ShowError(err, g.window)
 					return
 				}
@@ -179,6 +193,7 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 		chooser.Show()
 	}
 	movies := widget.NewButton("MEDIA(All streams included)", func() { add("all") })
+	bluRay := widget.NewButton("BLU-RAY BDMV / ISO", func() { add("bluray") })
 	drive := widget.NewButton("DVD DRIVE", func() {
 		drives, err := listPhysicalDVDDrives()
 		if err != nil {
@@ -347,8 +362,8 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 		list.Refresh()
 		status.SetText("Choose files to add streams.")
 	})
-	controls = []fyne.Disableable{movies, drive, audio, subs, chapters, folder, demux, mux, clear, chapter, output, name}
+	controls = []fyne.Disableable{movies, bluRay, drive, audio, subs, chapters, folder, demux, mux, clear, chapter, output, name}
 	baseControlCount = len(controls)
 	scroll := container.NewVScroll(list)
-	return container.NewBorder(container.NewVBox(container.NewGridWithColumns(2, movies, drive, audio, subs), widget.NewLabel("Select Streams — choose one chapter set, or use the chapter override below")), container.NewVBox(clear, container.NewBorder(nil, nil, nil, chapters, chapter), container.NewBorder(nil, nil, nil, folder, output), container.NewBorder(nil, nil, widget.NewLabel("Output filename"), nil, name), status, activity, container.NewHBox(demux, mux, cancelBtn)), nil, nil, scroll)
+	return container.NewBorder(container.NewVBox(container.NewGridWithColumns(2, movies, drive, audio, subs, bluRay, widget.NewLabel("Blu-ray: longest playlist / lossless LPCM→FLAC")), widget.NewLabel("Select Streams — choose one chapter set, or use the chapter override below")), container.NewVBox(clear, container.NewBorder(nil, nil, nil, chapters, chapter), container.NewBorder(nil, nil, nil, folder, output), container.NewBorder(nil, nil, widget.NewLabel("Output filename"), nil, name), status, activity, container.NewHBox(demux, mux, cancelBtn)), nil, nil, scroll)
 }
