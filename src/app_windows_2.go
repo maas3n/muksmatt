@@ -23,7 +23,17 @@ import (
 
 func setSource(p string) {
 	p = strings.TrimSpace(p)
-	normalized, err := normalizeTabSource(p)
+	var normalized string
+	var err error
+	if windowsBlurayMode() {
+		var source bluraySource
+		source, err = resolveBluraySource(p)
+		if err == nil {
+			normalized = source.Input
+		}
+	} else {
+		normalized, err = normalizeTabSource(p)
+	}
 	if err != nil {
 		messageBox(app.hwnd, "Invalid source", err.Error(), MB_OK|MB_ICONWARNING)
 		return
@@ -102,6 +112,7 @@ func setBusyUI(busy bool) {
 	procEnableWindow.Call(app.remuxBtn, enabled)
 	procEnableWindow.Call(app.demuxBtn, enabled)
 	procEnableWindow.Call(app.sourceEdit, enabled)
+	procEnableWindow.Call(app.sourceTypeCombo, enabled)
 	procEnableWindow.Call(app.sourceDVDButton, enabled)
 	procEnableWindow.Call(app.sourceISOButton, enabled)
 	procEnableWindow.Call(app.sourceDriveButton, enabled)
@@ -129,6 +140,33 @@ func discoverDVDTitlesViaDVDVideo(ctx context.Context) error {
 	src, err := currentSource()
 	if err != nil {
 		return err
+	}
+	if windowsBlurayMode() {
+		titles, err := guiBlurayPlaylists(ctx, src)
+		if err != nil {
+			return err
+		}
+		best, err := longestTitle(titles)
+		if err != nil {
+			return err
+		}
+		app.titlesMu.Lock()
+		app.titles = titles
+		app.titlesSource = src
+		app.titlesMu.Unlock()
+		procSendMessageW.Call(app.titleCombo, CB_RESETCONTENT, 0, 0)
+		selectedIndex := 0
+		for i, title := range titles {
+			label := fmt.Sprintf("Playlist %05d — %s", title.Number, formatDuration(title.Duration))
+			procSendMessageW.Call(app.titleCombo, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16Ptr(label))))
+			if title.Number == best.Number {
+				selectedIndex = i
+			}
+		}
+		procSendMessageW.Call(app.titleCombo, CB_SETCURSEL, uintptr(selectedIndex), 0)
+		setProgress(1)
+		setStatus(fmt.Sprintf("Found %d Blu-ray playlist(s). Selected %05d.", len(titles), best.Number))
+		return nil
 	}
 	tools, err := ensureTools(ctx, isMKVSource(src))
 	if err != nil {
@@ -204,6 +242,16 @@ func showMetadata(ctx context.Context) error {
 	t, err := selectedTitle()
 	if err != nil {
 		return err
+	}
+	if windowsBlurayMode() {
+		options, details, err := guiBlurayTracks(ctx, src, t.Number)
+		if err != nil {
+			return err
+		}
+		requestWindowsTrackWindow(src, t.Number, options, details)
+		setProgress(1)
+		setStatus(fmt.Sprintf("Blu-ray playlist %05d: choose video/audio/subtitle tracks.", t.Number))
+		return nil
 	}
 	tools, err := ensureTools(ctx, true)
 	if err != nil {
@@ -328,6 +376,21 @@ func remuxSelected(ctx context.Context) error {
 		return err
 	}
 	saveCurrentSettings()
+	if windowsBlurayMode() {
+		indexes, selected := windowsSelectedTrackIndexes(src, t.Number)
+		if !selected {
+			indexes = nil
+		}
+		setProgress(.1)
+		setStatus("Remuxing Blu-ray playlist with lossless LPCM-to-FLAC conversion…")
+		final, err := guiBlurayRemux(ctx, src, t.Number, outDir, indexes, isChecked(app.preserveChapters))
+		if err == nil {
+			setProgress(1)
+			setStatus("Complete: " + final)
+			messageBox(app.hwnd, "Blu-ray remux complete", "Created:\n"+final, MB_OK|MB_ICONINFORMATION)
+		}
+		return err
+	}
 	tools, err := ensureTools(ctx, false)
 	if err != nil {
 		return err
@@ -442,6 +505,30 @@ type toolPaths struct {
 }
 
 func chooseWindowsDemux() {
+	if windowsBlurayMode() {
+		startAsync("Demuxing Blu-ray playlist…", func(ctx context.Context) error {
+			src, err := currentSource()
+			if err != nil {
+				return err
+			}
+			title, err := selectedTitle()
+			if err != nil {
+				return err
+			}
+			indexes, selected := windowsSelectedTrackIndexes(src, title.Number)
+			if !selected {
+				indexes = nil
+			}
+			final, err := guiBlurayDemux(ctx, src, title.Number, strings.TrimSpace(getText(app.outputEdit)), indexes, isChecked(app.preserveChapters))
+			if err == nil {
+				setProgress(1)
+				setStatus("Blu-ray demux complete: " + final)
+				messageBox(app.hwnd, "Blu-ray demux complete", final, MB_OK|MB_ICONINFORMATION)
+			}
+			return err
+		})
+		return
+	}
 	// Yes/No/Cancel offers both lossless MPEG-2 forms without changing other codecs.
 	choice := 7
 	if src, err := currentSource(); err == nil && !isMKVSource(src) {
