@@ -4,7 +4,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -110,4 +112,72 @@ func mergerBlurayLPCMAudioIndexes(streams []mergerStream) []int {
 		}
 	}
 	return converted
+}
+
+ 
+// Blu-ray DEMUX uses a direct libbluray reader for each selected playlist.
+// Keep ordinary Advanced Merger inputs on their existing DVD/MKV demux path.
+// Multiple Blu-ray selections get source-specific directories under a single
+// new output root, which is removed on error or cancellation.
+func demuxMergerBluRay(ctx context.Context, selected []mergerStream, outputDir string) (final string, err error) {
+	type group struct {
+		path string
+		playlist int
+		indexes []int
+		chapters bool
+	}
+	var groups []*group
+	byPath := map[string]*group{}
+	for _, item := range selected {
+		if !item.BluRay {
+			return "", errors.New("DEMUX Blu-ray sources separately from ordinary DVD/MKV inputs; mixed MUX remains supported")
+		}
+		group := byPath[item.Path]
+		if group == nil {
+			group = &group{path: item.Path, playlist: item.BluRayPlaylist}
+			byPath[item.Path] = group
+			groups = append(groups, group)
+		}
+		if group.playlist != item.BluRayPlaylist {
+			return "", errors.New("conflicting Blu-ray playlists for one input")
+		}
+		switch item.Track.Kind {
+		case "chapters":
+			group.chapters = true
+		case "video", "audio", "subtitle":
+			group.indexes = append(group.indexes, item.Track.Index)
+		default:
+			return "", fmt.Errorf("unsupported Blu-ray DEMUX stream type: %s", item.Track.Kind)
+		}
+	}
+	if len(groups) == 0 {
+		return "", errors.New("select at least one Blu-ray source")
+	}
+	for _, group := range groups {
+		if len(group.indexes) == 0 {
+			return "", errors.New("choose at least one media stream from every Blu-ray source")
+		}
+	}
+	if len(groups) == 1 {
+		group := groups[0]
+		return guiBlurayDemux(ctx, group.path, group.playlist, outputDir, group.indexes, group.chapters)
+	}
+	if err = validateOutputDir(outputDir); err != nil {
+		return "", err
+	}
+	final, err = os.MkdirTemp(outputDir, "Advanced-Blu-ray-Demux-")
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err != nil {
+			_ = os.RemoveAll(final)
+		}
+	}()
+	for _, group := range groups {
+		if _, err = guiBlurayDemux(ctx, group.path, group.playlist, final, group.indexes, group.chapters); err != nil {
+			return final, err
+		}
+	}
+	return final, nil
 }
