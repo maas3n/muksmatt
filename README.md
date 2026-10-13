@@ -2,18 +2,59 @@
 
 **muKsMaTT** is a cross-platform media remuxing, demuxing, merging, batch-processing, and CLI application for **Windows, Linux, Android, and ChromeOS**. It is developed from [MattRip beta-build-6-1](https://github.com/maas3n/MattRip/releases/tag/beta-build-6-1), preserving the existing interface, DVD processing, and direct stream demux.
 
-> **Development status — not yet released.** The muKsMaTT packaging and identity migration is underway. The automatic Unified release publisher is intentionally disabled, and **there are no muKsMaTT release downloads yet**. GitHub Actions builds in pull requests are development/test artifacts, not signed production releases. Do not use the original MattRip download links as if they were muKsMaTT builds.
+> **Public beta — v0.1.0-beta.1 (experimental).** The first muKsMaTT GitHub prerelease is available for Windows, Linux, Android, and ChromeOS community testing. It is not a stable production release. Physical Blu-ray drives, protected Blu-ray discs, and real-device compatibility still require testing. Use the muKsMaTT release downloads below rather than MattRip packages or CI development artifacts.
 
 The long-term objective is **DVD and Blu-ray remux/demux and decryption** on Windows, Linux, and Android, without transcoding existing video/audio/subtitle streams where stream-copy is feasible. **Experimental Blu-ray development is implemented for authored BDMV folders and ISO media, but has not been validated on real physical Blu-ray drives or protected commercial discs.** Android physical USB optical-drive handling is a separate, unverified milestone. The current DVD build uses existing libdvdread/libdvdnav/libdvdcss integrations, with the Google Play variant deliberately CSS-free pending a distribution review.
+
+## Download v0.1.0-beta.1 (public beta)
+
+The first public muKsMaTT release is an **experimental GitHub prerelease**. Click a package below to download its file directly (not just open the release page):
+
+| Platform | Direct download |
+| --- | --- |
+| **Android / ChromeOS** (Android 8.0+, where APK sideloading is supported) | [Download Android APK](https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/muKsMaTT-0.1.0-beta.1-Android.apk) |
+| **Linux** (x86-64, glibc 2.38+) | [Download Linux Standalone](https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/muKsMaTT-0.1.0-beta.1-Linux-amd64Standalone) |
+| **Windows** (x64) | [Download Windows All-in-One](https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/muKsMaTT-0.1.0-beta.1-Windows-All-in-One.exe) |
+
+[Full release, alternative installers and sources](https://github.com/maas3n/muksmatt/releases/tag/v0.1.0-beta.1) · [SHA-256 checksum file](https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/SHA256SUMS.txt) · [Beta testing guide](docs/releases/v0.1.0-beta.1-testing.md)
+
+### Direct downloads with `wget` or `curl`
+
+Both tools follow GitHub's release-download redirects. Run these examples in a Linux shell (including Debian WSL). You only need **one** download method, and may choose only the package you need.
+
+**Using `wget`:**
+
+```bash
+wget -O "muKsMaTT-0.1.0-beta.1-Android.apk" "https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/muKsMaTT-0.1.0-beta.1-Android.apk"
+wget -O "muKsMaTT-0.1.0-beta.1-Linux-amd64Standalone" "https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/muKsMaTT-0.1.0-beta.1-Linux-amd64Standalone"
+wget -O "muKsMaTT-0.1.0-beta.1-Windows-All-in-One.exe" "https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/muKsMaTT-0.1.0-beta.1-Windows-All-in-One.exe"
+```
+
+**Using `curl`:**
+
+```bash
+curl -fL -o "muKsMaTT-0.1.0-beta.1-Android.apk" "https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/muKsMaTT-0.1.0-beta.1-Android.apk"
+curl -fL -o "muKsMaTT-0.1.0-beta.1-Linux-amd64Standalone" "https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/muKsMaTT-0.1.0-beta.1-Linux-amd64Standalone"
+curl -fL -o "muKsMaTT-0.1.0-beta.1-Windows-All-in-One.exe" "https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/muKsMaTT-0.1.0-beta.1-Windows-All-in-One.exe"
+```
+
+**Verify downloaded files** against the release's SHA-256 checksums (Linux / WSL):
+
+```bash
+curl -fL -o SHA256SUMS.txt "https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/SHA256SUMS.txt"
+sha256sum --ignore-missing -c SHA256SUMS.txt
+```
+
+To launch the Linux Standalone, make it executable first: `chmod +x muKsMaTT-0.1.0-beta.1-Linux-amd64Standalone`. The links intentionally target the **published beta tag** rather than `releases/latest/download/` (which does not point to GitHub prereleases). When a newer beta is published, its versioned filenames and links will need updating.
 
 ## Build and release status
 
 - [GitHub Actions and development artifacts](https://github.com/maas3n/muksmatt/actions)
 - [Open development pull requests](https://github.com/maas3n/muksmatt/pulls)
-- [Release page](https://github.com/maas3n/muksmatt/releases) — downloads will appear **only after the first successful authorized publication**.
-- [Proposed first public beta testing notes](docs/releases/v0.1.0-beta.1.md) — test instructions and known limitations; this document does **not** mean a release has been published.
+- [Published v0.1.0-beta.1 prerelease](https://github.com/maas3n/muksmatt/releases/tag/v0.1.0-beta.1) — signed Android APK, Linux and Windows packages, sources, notices, and SHA-256 checksums.
+- [Public beta release notes](docs/releases/v0.1.0-beta.1.md) and [community testing guide](docs/releases/v0.1.0-beta.1-testing.md) — known limitations and reporting instructions.
 
-When the first complete muKsMaTT release is published, the stable filenames will be `muKsMaTT-Windows-All-in-One.exe`, `muKsMaTT-Linux-amd64Standalone`, and `muKsMaTT-Android.apk`. The portable Windows executable and CLI use lowercase `muksmatt.exe` and `muksmatt-cli.exe`.
+The public beta uses **versioned asset filenames** (for example, `muKsMaTT-0.1.0-beta.1-Android.apk`). Use the exact versioned links below for both browser and command-line downloads; `releases/latest/download/` does not target this GitHub prerelease. The portable Windows executable and CLI use lowercase `muksmatt.exe` and `muksmatt-cli.exe`.
 
 ## What muKsMaTT can do
 
@@ -192,7 +233,7 @@ See [`android/README.md`](android/README.md) for Android-specific implementation
 
 ## Quick start
 
-No public muKsMaTT downloads have been published yet. The release workflow will provide Windows All-in-One, Linux Standalone and Android/ChromeOS APK downloads after package validation, dedicated Android signing and explicit publication approval. The build-from-source instructions below track `main`.
+Download the matching package from the [public beta downloads](#download-v010-beta1-public-beta) above. On Windows, run the All-in-One `.exe`; on Linux, mark the Standalone file executable with `chmod +x`; on Android/ChromeOS, install the signed APK where sideloading is supported. Consult the [community testing guide](docs/releases/v0.1.0-beta.1-testing.md) before testing. The build-from-source instructions below track `main`.
 
 ## Build from source
 
