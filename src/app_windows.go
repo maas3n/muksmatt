@@ -108,6 +108,7 @@ const (
 
 const (
 	idSourceEdit       = 1001
+	idSourceType       = 1015
 	idDVDButton        = 1002
 	idISOButton        = 1003
 	idDriveButton      = 1014
@@ -218,6 +219,7 @@ type ffprobeChapterResult struct {
 type application struct {
 	hwnd             uintptr
 	sourceEdit       uintptr
+	sourceTypeCombo  uintptr
 	sourceDVDButton  uintptr
 	sourceISOButton  uintptr
 	sourceDriveButton uintptr
