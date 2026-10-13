@@ -132,20 +132,20 @@ func demuxMergerBluRay(ctx context.Context, selected []mergerStream, outputDir s
 		if !item.BluRay {
 			return "", errors.New("DEMUX Blu-ray sources separately from ordinary DVD/MKV inputs; mixed MUX remains supported")
 		}
-		group := byPath[item.Path]
-		if group == nil {
-			group = &group{path: item.Path, playlist: item.BluRayPlaylist}
-			byPath[item.Path] = group
-			groups = append(groups, group)
+		grp := byPath[item.Path]
+		if grp == nil {
+			grp = &group{path: item.Path, playlist: item.BluRayPlaylist}
+			byPath[item.Path] = grp
+			groups = append(groups, grp)
 		}
-		if group.playlist != item.BluRayPlaylist {
+		if grp.playlist != item.BluRayPlaylist {
 			return "", errors.New("conflicting Blu-ray playlists for one input")
 		}
 		switch item.Track.Kind {
 		case "chapters":
-			group.chapters = true
+			grp.chapters = true
 		case "video", "audio", "subtitle":
-			group.indexes = append(group.indexes, item.Track.Index)
+			grp.indexes = append(grp.indexes, item.Track.Index)
 		default:
 			return "", fmt.Errorf("unsupported Blu-ray DEMUX stream type: %s", item.Track.Kind)
 		}
