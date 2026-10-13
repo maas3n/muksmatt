@@ -58,9 +58,39 @@ The public beta uses **versioned asset filenames** (for example, `muKsMaTT-0.1.0
 
 ## What muKsMaTT can do
 
-### REMUX/DEMUX
+muKsMaTT keeps the established DVD and general-media workflows while adding **experimental Blu-ray support**. Supported video, audio, and subtitle streams are remuxed into Matroska (**MKV**) without a lossy re-encode. An important exception is **Blu-ray LPCM**: selected `pcm_bluray` audio is deliberately encoded as **lossless FLAC**, retaining decoded audio samples rather than passing the raw LPCM format through unchanged. The exact behavior depends on the source and workflow.
 
-The main **REMUX/DEMUX** tab accepts:
+### Blu-ray — experimental DVD-independent path
+
+Blu-ray support is currently exposed through **desktop CLI commands on Windows and Linux**, and through an **experimental Android/ChromeOS native SAF remux path**. Do not assume the existing DVD **REMUX/DEMUX** GUI or **ADVANCED** tab provides a finished Blu-ray import, Blu-ray GUI remux or Blu-ray elementary-stream demux feature.
+
+The desktop CLI recognizes accessible **BDMV disc-root folders**, **Blu-ray ISO images** and **optical-drive paths** where the OS grants access. It can enumerate MPLS playlists, choose the longest by default or accept a specific playlist number, select individual video/audio/subtitle streams, and remux to MKV with optional playlist chapters. Compatible streams are copied; selected Blu-ray LPCM audio is converted to FLAC losslessly. FFmpeg/FFprobe and the native libbluray navigator are bundled with release packages that need them.
+
+**Desktop CLI examples** (use `muksmatt-cli.exe` on Windows, included in the Setup and Portable packages):
+
+```bash
+# List available playlists
+muksmatt-cli bluray scan /path/to/bluray-disc-root
+
+# Remux the longest available playlist to MKV
+muksmatt-cli bluray remux --output movie.mkv /path/to/bluray-disc-root
+
+# Choose a playlist and specific input stream indexes
+muksmatt-cli bluray remux --playlist 00800 --streams 0,1,2 --output movie.mkv /path/to/bluray-disc-root
+
+# Omit playlist chapters
+muksmatt-cli bluray remux --no-chapters --output movie.mkv /path/to/bluray-disc-root
+```
+
+Substitute an accessible `.iso` or supported optical-drive path for the disc root; list playlists first and use `--playlist` only for an ID reported by `scan`. The output must be a **new `.mkv`**; existing files are not overwritten. On Linux the Standalone package also supports its documented CLI mode.
+
+**Blu-ray limitations:** CI has exercised *self-authored, unencrypted* BDMV and ISO fixtures, chapter mapping, stream selection, and LPCM-to-FLAC parity; genuine physical Blu-ray drives, protected commercial discs, real-device Android compatibility and **AACS/BD+ decryption** remain unverified. Bundled `libaacs`/`libbdplus` libraries do **not** imply working protection handling or bundled keys. The desktop FFmpeg `bluray:` protocol can reject playlists shorter than **180 seconds** ([issue #20](https://github.com/maas3n/muksmatt/issues/20)). Android USB optical-drive input is not a confirmed supported feature.
+
+For the actual qualification status, see the [Blu-ray real-media validation matrix](docs/BLURAY_REAL_MEDIA_VALIDATION.md), [beta release notes](docs/releases/v0.1.0-beta.1.md), and [community testing guide](docs/releases/v0.1.0-beta.1-testing.md).
+
+### DVD and MKV — REMUX/DEMUX
+
+The main **REMUX/DEMUX** tab handles DVD and MKV sources (not the separate experimental Blu-ray CLI path). It accepts:
 
 - DVD folders and `VIDEO_TS`
 - unmounted DVD ISO images
@@ -73,7 +103,7 @@ Choose **REMUX** to create an MKV using stream copy. Chapter preservation is opt
 
 Windows and Linux use FFmpeg's `dvdvideo` input backed by `libdvdread`/`libdvdnav`. Self-contained desktop builds keep libdvdcss private to muKsMaTT and let libdvdread discover it dynamically; no separate CSS remux engine is introduced. Direct GitHub/development Android builds statically link libdvdcss into the JNI bridge and decrypt scrambled VOB sectors before the existing native FFmpeg/libav stream-copy reader consumes them. The Google Play build keeps CSS disabled for now. muKsMaTT does not use its own DVD IFO parser.
 
-### Demux
+### DVD/MKV demux
 
 The **Demux** action in the **REMUX/DEMUX** tab extracts selected streams without re-encoding. It works with DVD folders, DVD ISOs, and MKV sources on all supported platforms, plus physical DVD drives on Windows/Linux.
 
@@ -94,7 +124,7 @@ Each demux operation creates a new output folder. DVD folders and ISOs are read 
 
 Android/ChromeOS temporarily holds exported files while saving them through the Storage Access Framework; MKV inputs also require an app-private input copy. Direct DVD demux keeps stream selection, chapters, subtitle metadata, cancellation, extraction progress, and the DVD clock-reset/discontinuity handling used by the native reader.
 
-### ADVANCED
+### ADVANCED (general media and DVD)
 
 The **ADVANCED** tab combines selected streams from multiple sources into one MKV without transcoding.
 
@@ -186,7 +216,19 @@ All tracks start selected. At least one media stream must remain selected for re
 
 Changing the source or DVD title clears the previous selection so stream indexes cannot accidentally carry over to another title. MKV metadata in the **REMUX/DEMUX** tab is displayed using MediaInfo.
 
-## Platform support
+## Platform support and compatibility
+
+| Feature | Windows | Linux | Android / ChromeOS |
+| --- | --- | --- | --- |
+| DVD `VIDEO_TS` folders and DVD ISO remux/demux | Yes | Yes | Yes, via SAF |
+| Physical DVD drive input | Supported desktop path | Supported desktop path | USB optical drive **not validated** |
+| MKV demux / general-media Advanced Merger | Yes | Yes | Yes |
+| Blu-ray BDMV / ISO remux | **Experimental desktop CLI** | **Experimental desktop CLI** | **Experimental native SAF path**; GUI integration not established |
+| Blu-ray playlist selection / chapters / LPCM→FLAC | Experimental CLI | Experimental CLI | Experimental native path; verify on real devices |
+| Physical Blu-ray drives | Implementation exists, **hardware unverified** | Implementation exists, **hardware unverified** | **Unverified** |
+| AACS / BD+ protected Blu-ray decryption | **Not validated** | **Not validated** | **Not validated** |
+
+A green build or emulator test does not establish compatibility with real, encrypted, or commercially authored Blu-rays. Please check the [beta testing guide](docs/releases/v0.1.0-beta.1-testing.md) before reporting success or failure.
 
 ### Windows
 
@@ -217,7 +259,7 @@ Changing the source or DVD title clears the previous selection so stream indexes
 - DVD folder and read-only UDF ISO support
 - CI coverage includes API 26, API 35 and API 35 with 16 KB pages
 
-Android/ChromeOS remains marked **experimental** while real-device/physical-Chromebook validation and production Play rollout remain separate gates. The v1.4.0 APK was debug-signed; v1.4.1 and later GitHub APKs use persistent distribution signing, so upgrading directly from v1.4.0 may require uninstalling it first.
+Android/ChromeOS remains **experimental** while physical-device, Chromebook, Blu-ray hardware and Play Store validation remain separate gates. The GitHub beta APK is signed with muKsMaTT's **own persistent app-signing identity** and uses application ID `io.github.maas3n.muksmatt`; it is a separate app from MattRip and MattMux, not an in-place upgrade for their APKs. Google Play purchases and public Play distribution are not enabled.
 
 See [`android/README.md`](android/README.md) for Android-specific implementation details and limitations.
 
@@ -231,13 +273,39 @@ See [`android/README.md`](android/README.md) for Android-specific implementation
 - Output capabilities can depend on the selected Android document provider.
 - Remuxing and demuxing are stream-copy operations; unsupported formats are not silently transcoded.
 
-## Quick start
+## Install and get started
 
-Download the matching package from the [public beta downloads](#download-v010-beta1-public-beta) above. On Windows, run the All-in-One `.exe`; on Linux, mark the Standalone file executable with `chmod +x`; on Android/ChromeOS, install the signed APK where sideloading is supported. Consult the [community testing guide](docs/releases/v0.1.0-beta.1-testing.md) before testing. The build-from-source instructions below track `main`.
+Use the [verified direct beta downloads](#download-v010-beta1-public-beta) above. These are public **prerelease** packages; always keep the original source media and verify the [release SHA-256 checksums](https://github.com/maas3n/muksmatt/releases/download/v0.1.0-beta.1/SHA256SUMS.txt).
+
+- **Windows x64:** Download and run the All-in-One `.exe`, or choose Setup / Portable from the release page. The Windows executables are **not Authenticode-signed**, so Windows may display a publisher warning. Check the checksum and source before choosing to run an unsigned beta. The desktop CLI is included with Setup/Portable.
+- **Linux x86-64:** The Standalone requires **glibc 2.38+** and a usable graphical session to launch the GUI. For example:
+
+  ```bash
+  chmod +x muKsMaTT-0.1.0-beta.1-Linux-amd64Standalone
+  ./muKsMaTT-0.1.0-beta.1-Linux-amd64Standalone
+  ```
+
+  The release also provides a `.deb` and Linux tarball.
+- **Android / ChromeOS:** Install the signed APK using your device's supported sideloading method. Android 8.0/API 26+ is required; Chromebooks must support Android applications. This is not a Google Play download. Grant access to your chosen files/folders through Android's document picker (SAF); seekable storage providers and sufficient temporary space may be needed.
+
+**First DVD/MKV remux:** In **REMUX/DEMUX**, select a DVD `VIDEO_TS` folder, DVD ISO or MKV, choose **SCAN/SELECT STREAMS**, review the title/tracks and chapter setting, select a writable output destination, then choose **REMUX**. Use **DEMUX** to extract selected streams. **ADVANCED** combines selected streams from multiple sources, and **BATCH REMUX** processes a DVD collection.
+
+**First Blu-ray test:** Use the [desktop CLI examples above](#blu-ray--experimental-dvd-independent-path) with a legally accessible, preferably unencrypted BDMV/ISO. Compare resulting MKV streams, chapters, and audio/video sync with the source. Android Blu-ray support remains experimental and device/provider dependent; avoid assuming that the DVD GUI controls perform Blu-ray remux.
+
+Consult the [community testing guide](docs/releases/v0.1.0-beta.1-testing.md) before testing. The build-from-source instructions below track `main`.
+
+## Troubleshooting and beta feedback
+
+- **Blu-ray scan or remux fails:** Check whether the selected source is an accessible BDMV disc root, an actual Blu-ray ISO, or a readable optical device. Protected discs may require separately configured, legally available information; **AACS/BD+ has not been validated**. Playlists shorter than three minutes are a known desktop limitation.
+- **Linux application won't launch:** Check `chmod +x`, the host `glibc` version (`ldd --version`), and whether a graphical display session is available.
+- **Android source/output inaccessible:** Re-select it using the system file/folder picker. Some document providers cannot seek or rename output documents; temporary staging also requires free device space.
+- **Unexpected streams, chapters, or lip-sync:** Compare the resulting MKV with the source; note the selected playlist/title, audio/subtitle stream indexes, chapter count, and where playback diverges.
+
+Please [report bugs or successful compatibility tests through GitHub Issues](https://github.com/maas3n/muksmatt/issues/new). Include the beta version, OS/architecture, package, source type (DVD/BDMV/ISO/optical drive), selected streams, expected vs actual result, steps to reproduce and sanitized log messages. The [copy-ready community test report](docs/releases/v0.1.0-beta.1-testing.md) lists further details. **Do not upload copyrighted disc content, decryption keys, secrets, private paths or personal identifiers.**
 
 ## Build from source
 
-Everything is built from `main`.
+Development builds use `main`; published binaries use the immutable version tag.
 
 ### Windows
 
@@ -281,7 +349,7 @@ See [`RELEASING.md`](RELEASING.md) for the full release policy.
 
 The current feature set grew substantially after the early 1.4.x releases. Notable additions and fixes include cross-platform Advanced Merger expansion, Advanced Merger selected-stream DEMUX with MPEG-2/VOB choice, one-click BATCH, shared Windows/Linux DVD CLI commands, Android BATCH and in-app CLI support, DVD ISO handling, native Android libdvdnav title selection, MKV input in the REMUX/DEMUX tab, direct DVD demux without a temporary MKV, DVD clock-reset/progress handling, DVD subtitle extraction, and stronger Windows/Linux/Android parity coverage.
 
-muKsMaTT inherits this feature set from [MattRip beta-build-6-1](https://github.com/maas3n/MattRip/releases/tag/beta-build-6-1). MattRip in turn originated from MattMux; see [MattMux Releases](https://github.com/maas3n/MattMux/releases) for earlier history.
+muKsMaTT was forked from [MattRip beta-build-6-1](https://github.com/maas3n/MattRip/releases/tag/beta-build-6-1), which originated from MattMux. **muKsMaTT has its own versioned releases, build outputs and Android application/signing identity.** Earlier MattRip/MattMux releases are historical provenance, not muKsMaTT downloadable packages; see [MattMux Releases](https://github.com/maas3n/MattMux/releases) for earlier history.
 
 ## Third-party runtime tools
 
