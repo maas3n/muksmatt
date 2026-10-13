@@ -241,6 +241,7 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 	for _, index := range mergerBlurayLPCMAudioIndexes(streams) {
 		args = append(args, fmt.Sprintf("-c:a:%d", index), "flac")
 	}
+	args = append(args, mergerBlurayMetadataArgs(streams)...)
 	return append(args, "-f", "matroska", output), nil
 }
 
