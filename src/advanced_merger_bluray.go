@@ -129,7 +129,7 @@ func mergerBlurayLPCMAudioIndexes(streams []mergerStream) []int {
 // Keep ordinary Advanced Merger inputs on their existing DVD/MKV demux path.
 // Multiple Blu-ray selections get source-specific directories under a single
 // new output root, which is removed on error or cancellation.
-func demuxMergerBluRay(ctx context.Context, selected []mergerStream, outputDir string) (final string, err error) {
+func demuxMergerBluRay(ctx context.Context, selected []mergerStream, outputDir, videoMode string) (final string, err error) {
 	type group struct {
 		path string
 		playlist int
@@ -170,7 +170,7 @@ func demuxMergerBluRay(ctx context.Context, selected []mergerStream, outputDir s
 	}
 	if len(groups) == 1 {
 		group := groups[0]
-		return guiBlurayDemux(ctx, group.path, group.playlist, outputDir, group.indexes, group.chapters)
+		return guiBlurayDemuxWithVideoMode(ctx, group.path, group.playlist, outputDir, group.indexes, group.chapters, videoMode)
 	}
 	if err = validateOutputDir(outputDir); err != nil {
 		return "", err
@@ -185,7 +185,7 @@ func demuxMergerBluRay(ctx context.Context, selected []mergerStream, outputDir s
 		}
 	}()
 	for _, group := range groups {
-		if _, err = guiBlurayDemux(ctx, group.path, group.playlist, final, group.indexes, group.chapters); err != nil {
+		if _, err = guiBlurayDemuxWithVideoMode(ctx, group.path, group.playlist, final, group.indexes, group.chapters, videoMode); err != nil {
 			return final, err
 		}
 	}
