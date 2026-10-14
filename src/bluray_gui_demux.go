@@ -11,10 +11,70 @@ import (
 	"strings"
 )
 
-// Demux a selected Blu-ray playlist directly through the same libbluray
-// transport used by the desktop CLI. Never apply DVD-only input flags or
-// produce a temporary source.mkv. Unsupported codecs fail before files appear.
-func guiBlurayDemux(ctx context.Context, path string, playlistID int, outputDir string, indexes []int, chapters bool) (final string, err error) {
+const (
+	blurayVideoElementary = "elementary"
+	blurayVideoM2TS       = "m2ts"
+	blurayVideoBoth       = "both"
+)
+
+// Elementary outputs retain their codec-specific extension. An M2TS option
+// *muxes* the copied Blu-ray video stream into 192-byte transport packets;
+// it does not transcode, rename an elementary stream, or create an MKV.
+func blurayDemuxFormats(stream blurayStream, videoMode string) ([]demuxFormat, error) {
+	switch videoMode {
+	case blurayVideoElementary, blurayVideoM2TS, blurayVideoBoth:
+	default:
+		return nil, fmt.Errorf("unsupported Blu-ray video export mode %q", videoMode)
+	}
+	if strings.EqualFold(stream.Codec, "pcm_bluray") {
+		return []demuxFormat{{Extension: "flac", Muxer: "flac"}}, nil
+	}
+	elementary, err := streamDemuxFormat(stream.Codec, "mpeg2")
+	if err != nil {
+		return nil, err
+	}
+	if stream.Kind != "video" || videoMode == blurayVideoElementary {
+		return []demuxFormat{elementary}, nil
+	}
+	switch strings.ToLower(stream.Codec) {
+	case "h264", "hevc", "mpeg2video":
+		// MPEG-TS supports these Blu-ray video codecs via stream copy.
+	default:
+		return nil, fmt.Errorf("Blu-ray M2TS export does not support video codec %s", stream.Codec)
+	}
+	transport := demuxFormat{Extension: "m2ts", Muxer: "mpegts"}
+	if videoMode == blurayVideoM2TS {
+		return []demuxFormat{transport}, nil
+	}
+	return []demuxFormat{elementary, transport}, nil
+}
+
+func blurayDemuxOutputArgs(args []string, stream blurayStream, format demuxFormat, path string) []string {
+	codec := "copy"
+	if strings.EqualFold(stream.Codec, "pcm_bluray") {
+		codec = "flac"
+	}
+	args = append(args, "-map", fmt.Sprintf("0:%d", stream.Index), "-c", codec, "-map_metadata", "-1", "-map_chapters", "-1")
+	if format.Filter != "" {
+		args = append(args, "-bsf:v", format.Filter)
+	}
+	if format.Muxer == "mpegts" && format.Extension == "m2ts" {
+		args = append(args, "-mpegts_m2ts_mode", "1")
+	}
+	if format.Muxer == "vob" {
+		args = append(args, "-muxdelay", "0", "-preload", "0")
+	}
+	return append(args, "-f", format.Muxer, path)
+}
+
+// The existing REMUX/DEMUX tab and CLI continue to use elementary extraction.
+func guiBlurayDemux(ctx context.Context, path string, playlistID int, outputDir string, indexes []int, chapters bool) (string, error) {
+	return guiBlurayDemuxWithVideoMode(ctx, path, playlistID, outputDir, indexes, chapters, blurayVideoElementary)
+}
+
+// Demux the selected Blu-ray playlist directly via libbluray, never via a
+// temporary MKV or any DVD-only input flags.
+func guiBlurayDemuxWithVideoMode(ctx context.Context, path string, playlistID int, outputDir string, indexes []int, chapters bool, videoMode string) (final string, err error) {
 	if err = validateOutputDir(outputDir); err != nil {
 		return "", err
 	}
@@ -40,16 +100,13 @@ func guiBlurayDemux(ctx context.Context, path string, playlistID int, outputDir 
 	}
 	exports := make([]export, 0, len(selected))
 	for _, stream := range selected {
-		var format demuxFormat
-		if strings.EqualFold(stream.Codec, "pcm_bluray") {
-			format = demuxFormat{Extension: "flac", Muxer: "flac"}
-		} else {
-			format, err = streamDemuxFormat(stream.Codec, "mpeg2")
-			if err != nil {
-				return "", err
-			}
+		formats, formatErr := blurayDemuxFormats(stream, videoMode)
+		if formatErr != nil {
+			return "", formatErr
 		}
-		exports = append(exports, export{stream: stream, format: format})
+		for _, format := range formats {
+			exports = append(exports, export{stream: stream, format: format})
+		}
 	}
 	stem := sanitizeFilename(source.BaseName)
 	if stem == "" {
@@ -73,18 +130,7 @@ func guiBlurayDemux(ctx context.Context, path string, playlistID int, outputDir 
 	args = append(args, input...)
 	for _, item := range exports {
 		path := filepath.Join(final, fmt.Sprintf("track-%02d.%s", item.stream.Index, item.format.Extension))
-		codec := "copy"
-		if strings.EqualFold(item.stream.Codec, "pcm_bluray") {
-			codec = "flac"
-		}
-		args = append(args, "-map", fmt.Sprintf("0:%d", item.stream.Index), "-c", codec, "-map_metadata", "-1", "-map_chapters", "-1")
-		if item.format.Filter != "" {
-			args = append(args, "-bsf:v", item.format.Filter)
-		}
-		if item.format.Muxer == "vob" {
-			args = append(args, "-muxdelay", "0", "-preload", "0")
-		}
-		args = append(args, "-f", item.format.Muxer, path)
+		args = blurayDemuxOutputArgs(args, item.stream, item.format, path)
 	}
 	if _, err = runMergerCommand(ctx, tools.ffmpeg, args...); err != nil {
 		return final, fmt.Errorf("Blu-ray stream extraction failed: %w", err)
