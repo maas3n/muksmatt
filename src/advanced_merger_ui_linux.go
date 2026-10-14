@@ -76,7 +76,7 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 			})
 		}()
 	}
-	addPaths := func(kind string, paths []string) {
+	addPaths := func(kind string, paths []string, playlistNumber int) {
 		if len(paths) == 0 {
 			return
 		}
@@ -89,7 +89,7 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 			for _, p := range paths {
 				var ss []mergerStream
 				if kind == "bluray" {
-					ss, err = probeMergerBluRay(ctx, p, "all")
+					ss, err = probeMergerBluRay(ctx, p, "all", playlistNumber)
 				} else {
 					ss, err = probeMergerFile(ctx, tools.ffprobe, p, kind)
 				}
@@ -117,6 +117,48 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 					list.Add(check)
 				}
 				status.SetText(fmt.Sprintf("%d streams available", len(streams)))
+			}, nil
+		})
+	}
+	// Discover playlists before reading streams so looping fake-long titles are
+	// never silently selected by ADVANCED. Require a user choice for ISO too.
+	chooseBluRayPlaylist := func(path string) {
+		run("Reading Blu-ray playlists…", func(ctx context.Context) (func(), error) {
+			source, err := resolveBluraySource(path)
+			if err != nil {
+				return nil, err
+			}
+			playlists, err := discoverBlurayForSource(ctx, source)
+			if err != nil {
+				return nil, err
+			}
+			if len(playlists) == 0 {
+				return nil, fmt.Errorf("Blu-ray contains no readable playlists")
+			}
+			return func() {
+				labels := make([]string, 0, len(playlists))
+				byLabel := make(map[string]int, len(playlists))
+				for _, p := range playlists {
+					label := fmt.Sprintf("Playlist %05d — %s — %d chapters", p.Number, p.Duration(), len(p.Chapters))
+					labels = append(labels, label)
+					byLabel[label] = p.Number
+				}
+				picker := widget.NewSelect(labels, nil)
+				picker.PlaceHolder = "Choose a playlist (do not rely on longest)"
+				info := widget.NewLabel("Choose the intended Blu-ray playlist. Some discs contain fake-long looping playlists.")
+				info.Wrapping = fyne.TextWrapWord
+				dialog.NewCustomConfirm("Choose ADVANCED Blu-ray playlist", "Use playlist", "Cancel",
+					container.NewVBox(info, picker), func(ok bool) {
+						if !ok {
+							return
+						}
+						number, selected := byLabel[picker.Selected]
+						if !selected {
+							dialog.ShowInformation("Playlist required", "Select a playlist before adding Blu-ray streams.", g.window)
+							return
+						}
+						addPaths("bluray", []string{path}, number)
+					}, g.window).Show()
 			}, nil
 		})
 	}
@@ -173,7 +215,11 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 				if chooser != nil {
 					chooser.Hide()
 				}
-				addPaths(kind, []string{dir.Text})
+				if kind == "bluray" {
+					chooseBluRayPlaylist(dir.Text)
+				} else {
+					addPaths(kind, []string{dir.Text}, -1)
+				}
 			}))
 		}
 		chooser = dialog.NewCustomConfirm("Choose "+kind+" files", "Add files", "Cancel", container.NewBorder(container.NewBorder(nil, nil, nil, actions, dir), nil, nil, nil, scroll), func(ok bool) {
@@ -187,7 +233,15 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 				}
 			}
 			sort.Strings(paths)
-			addPaths(kind, paths)
+			if kind == "bluray" {
+				if len(paths) != 1 {
+					dialog.ShowInformation("Choose one Blu-ray", "Add one Blu-ray source at a time so its playlist can be selected.", g.window)
+					return
+				}
+				chooseBluRayPlaylist(paths[0])
+				return
+			}
+			addPaths(kind, paths, -1)
 		}, g.window)
 		chooser.Resize(fyne.NewSize(680, 460))
 		chooser.Show()
@@ -365,5 +419,5 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 	controls = []fyne.Disableable{movies, bluRay, drive, audio, subs, chapters, folder, demux, mux, clear, chapter, output, name}
 	baseControlCount = len(controls)
 	scroll := container.NewVScroll(list)
-	return container.NewBorder(container.NewVBox(container.NewGridWithColumns(2, movies, drive, audio, subs, bluRay, widget.NewLabel("Blu-ray: longest playlist / lossless LPCM→FLAC")), widget.NewLabel("Select Streams — choose one chapter set, or use the chapter override below")), container.NewVBox(clear, container.NewBorder(nil, nil, nil, chapters, chapter), container.NewBorder(nil, nil, nil, folder, output), container.NewBorder(nil, nil, widget.NewLabel("Output filename"), nil, name), status, activity, container.NewHBox(demux, mux, cancelBtn)), nil, nil, scroll)
+	return container.NewBorder(container.NewVBox(container.NewGridWithColumns(2, movies, drive, audio, subs, bluRay, widget.NewLabel("Blu-ray: choose playlist / lossless LPCM→FLAC")), widget.NewLabel("Select Streams — choose one chapter set, or use the chapter override below")), container.NewVBox(clear, container.NewBorder(nil, nil, nil, chapters, chapter), container.NewBorder(nil, nil, nil, folder, output), container.NewBorder(nil, nil, widget.NewLabel("Output filename"), nil, name), status, activity, container.NewHBox(demux, mux, cancelBtn)), nil, nil, scroll)
 }
