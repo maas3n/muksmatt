@@ -343,26 +343,58 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 		}, g.window)
 	})
 	demux := widget.NewButton("DEMUX", func() {
-		format := widget.NewSelect([]string{"MPEG2 elementary video (.mpeg2)", "VOB video (.VOB)"}, nil)
-		format.SetSelected("MPEG2 elementary video (.mpeg2)")
-		dialog.NewCustomConfirm("Demux selected streams", "Demux", "Cancel", container.NewVBox(
-			widget.NewLabel("MPEG-2 video export format"),
-			format,
-		), func(ok bool) {
+		var chosen []mergerStream
+		hasVideo := false
+		for i, stream := range streams {
+			if !checks[i].Checked {
+				continue
+			}
+			chosen = append(chosen, stream)
+			if stream.Track.Kind == "video" {
+				hasVideo = true
+			}
+		}
+		bluRay := selectedBluRayMergerStreams(chosen)
+		videoMode := "mpeg2"
+		options := container.NewVBox()
+		var videoFormat *widget.Select
+		if bluRay {
+			videoMode = blurayVideoElementary
+			if hasVideo {
+				videoFormat = widget.NewSelect([]string{
+					"Elementary video (codec-native .h264 / .hevc / .mpeg2)",
+					"Video in M2TS transport stream (.m2ts)",
+					"Both elementary video and M2TS",
+				}, nil)
+				videoFormat.SetSelected("Elementary video (codec-native .h264 / .hevc / .mpeg2)")
+				options.Add(widget.NewLabel("Blu-ray video export format"))
+				options.Add(videoFormat)
+			} else {
+				options.Add(widget.NewLabel("No Blu-ray video selected — exporting selected audio, subtitles and chapters only."))
+			}
+		} else if hasVideo {
+			videoFormat = widget.NewSelect([]string{"MPEG2 elementary video (.mpeg2)", "VOB video (.VOB)"}, nil)
+			videoFormat.SetSelected("MPEG2 elementary video (.mpeg2)")
+			options.Add(widget.NewLabel("MPEG-2 video export format (DVD sources)"))
+			options.Add(videoFormat)
+		} else {
+			options.Add(widget.NewLabel("No video stream selected — exporting selected audio, subtitles and chapters only."))
+		}
+		dialog.NewCustomConfirm("Demux selected streams", "Demux", "Cancel", options, func(ok bool) {
 			if !ok {
 				return
 			}
-			var chosen []mergerStream
-			for i, s := range streams {
-				if checks[i].Checked {
-					chosen = append(chosen, s)
+			if bluRay && hasVideo {
+				switch videoFormat.Selected {
+				case "Video in M2TS transport stream (.m2ts)":
+					videoMode = blurayVideoM2TS
+				case "Both elementary video and M2TS":
+					videoMode = blurayVideoBoth
 				}
+			} else if !bluRay && hasVideo && videoFormat.Selected == "VOB video (.VOB)" {
+				videoMode = "vob"
 			}
 			dir := output.Text
-			video := "mpeg2"
-			if format.Selected == "VOB video (.VOB)" {
-				video = "vob"
-			}
 			run("Demuxing selected streams…", func(ctx context.Context) (func(), error) {
 				if err := validateOutputDir(dir); err != nil {
 					return nil, err
@@ -371,7 +403,7 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 				if err != nil {
 					return nil, err
 				}
-				final, err := demuxMerger(ctx, tools, chosen, dir, video)
+				final, err := demuxMerger(ctx, tools, chosen, dir, videoMode)
 				if err != nil {
 					return nil, err
 				}
