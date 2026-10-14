@@ -318,29 +318,48 @@ func handleWindowsMergerCommand(id int) bool {
 			return true
 		}
 		path := paths[0]
-		runWindowsMerger("Reading Blu-ray playlist and streams…", func(ctx context.Context) (func(), error) {
-			added, err := probeMergerBluRay(ctx, path, "all")
+		// ADVANCED must not choose the longest MPLS without user consent:
+		// Blu-rays can contain fake-long, looping playlists.
+		runWindowsMerger("Reading Blu-ray playlists…", func(ctx context.Context) (func(), error) {
+			source, err := resolveBluraySource(path)
 			if err != nil {
 				return nil, err
 			}
+			playlists, err := discoverBlurayForSource(ctx, source)
+			if err != nil {
+				return nil, err
+			}
+			if len(playlists) == 0 {
+				return nil, fmt.Errorf("Blu-ray contains no readable playlists")
+			}
 			return func() {
-				for _, s := range added {
-					duplicate := false
-					for _, old := range mergerWindow.streams {
-						if strings.EqualFold(old.Path, s.Path) && old.Track.Index == s.Track.Index && old.BluRay && old.BluRayPlaylist == s.BluRayPlaylist {
-							duplicate = true
+				showWindowsAdvancedBluRayPlaylistChooser(playlists, func(playlistNumber int) {
+					runWindowsMerger("Reading selected Blu-ray playlist and streams…", func(ctx context.Context) (func(), error) {
+						added, err := probeMergerBluRay(ctx, path, "all", playlistNumber)
+						if err != nil {
+							return nil, err
 						}
-					}
-					if duplicate {
-						continue
-					}
-					index := len(mergerWindow.streams)
-					mergerWindow.streams = append(mergerWindow.streams, s)
-					label := fmt.Sprintf("%s — Blu-ray playlist %05d — %s", dvdSourceDisplayName(s.Path), s.BluRayPlaylist, s.Track.Label())
-					item := LVITEMW{Mask: LVIF_TEXT | LVIF_STATE, IItem: int32(index), PszText: utf16Ptr(label), State: 2 << 12, StateMask: LVIS_STATEIMAGEMASK}
-					procSendMessageW.Call(mergerWindow.list, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
-				}
-				setText(mergerWindow.status, fmt.Sprintf("%d streams available", len(mergerWindow.streams)))
+						return func() {
+							for _, s := range added {
+								duplicate := false
+								for _, old := range mergerWindow.streams {
+									if strings.EqualFold(old.Path, s.Path) && old.Track.Index == s.Track.Index && old.BluRay && old.BluRayPlaylist == s.BluRayPlaylist {
+										duplicate = true
+									}
+								}
+								if duplicate {
+									continue
+								}
+								index := len(mergerWindow.streams)
+								mergerWindow.streams = append(mergerWindow.streams, s)
+								label := fmt.Sprintf("%s — Blu-ray playlist %05d — %s", dvdSourceDisplayName(s.Path), s.BluRayPlaylist, s.Track.Label())
+								item := LVITEMW{Mask: LVIF_TEXT | LVIF_STATE, IItem: int32(index), PszText: utf16Ptr(label), State: 2 << 12, StateMask: LVIS_STATEIMAGEMASK}
+								procSendMessageW.Call(mergerWindow.list, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
+							}
+							setText(mergerWindow.status, fmt.Sprintf("%d streams available", len(mergerWindow.streams)))
+						}, nil
+					})
+				})
 			}, nil
 		})
 	case 9:
