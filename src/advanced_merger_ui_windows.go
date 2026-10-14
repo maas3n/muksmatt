@@ -448,35 +448,57 @@ func handleWindowsMergerCommand(id int) bool {
 		})
 	case 7:
 		var selected []mergerStream
+		hasVideo := false
 		for i, s := range mergerWindow.streams {
 			state, _, _ := procSendMessageW.Call(mergerWindow.list, LVM_GETITEMSTATE, uintptr(i), LVIS_STATEIMAGEMASK)
 			if state>>12 == 2 {
 				selected = append(selected, s)
+				if s.Track.Kind == "video" {
+					hasVideo = true
+				}
 			}
 		}
-		choice := messageBox(app.hwnd, "MPEG-2 video export format", "Save MPEG-2 video as VOB?\n\nYes: .VOB video\nNo: .mpeg2 elementary video\nCancel: return", 0x00000003|MB_ICONQUESTION)
+		dir := getText(mergerWindow.output)
+		startDemux := func(videoMode string) {
+			runWindowsMerger("Demuxing selected streams…", func(ctx context.Context) (func(), error) {
+				if err := validateOutputDir(dir); err != nil {
+					return nil, err
+				}
+				tools, err := mergerTools(ctx)
+				if err != nil {
+					return nil, err
+				}
+				final, err := demuxMerger(ctx, tools, selected, dir, videoMode)
+				if err != nil {
+					return nil, err
+				}
+				return func() { setText(mergerWindow.status, "Demux complete: " + final) }, nil
+			})
+		}
+		if selectedBluRayMergerStreams(selected) {
+			if hasVideo {
+				showWindowsAdvancedBluRayVideoChooser(startDemux)
+			} else {
+				// With no selected video, the MPEG-2/VOB dialog is irrelevant.
+				startDemux(blurayVideoElementary)
+			}
+			return true
+		}
+		if !hasVideo {
+			startDemux("mpeg2")
+			return true
+		}
+		choice := messageBox(app.hwnd, "MPEG-2 video export format",
+			"Save MPEG-2 video as VOB?\n\nYes: .VOB video\nNo: .mpeg2 elementary video\nCancel: return",
+			0x00000003|MB_ICONQUESTION)
 		if choice != 6 && choice != 7 {
 			return true
 		}
-		video := "mpeg2"
 		if choice == 6 {
-			video = "vob"
+			startDemux("vob")
+		} else {
+			startDemux("mpeg2")
 		}
-		dir := getText(mergerWindow.output)
-		runWindowsMerger("Demuxing selected streams…", func(ctx context.Context) (func(), error) {
-			if err := validateOutputDir(dir); err != nil {
-				return nil, err
-			}
-			tools, err := mergerTools(ctx)
-			if err != nil {
-				return nil, err
-			}
-			final, err := demuxMerger(ctx, tools, selected, dir, video)
-			if err != nil {
-				return nil, err
-			}
-			return func() { setText(mergerWindow.status, "Demux complete: "+final) }, nil
-		})
 	}
 	return true
 }
