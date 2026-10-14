@@ -10,9 +10,18 @@ import (
 	"strings"
 )
 
-// Probe a Blu-ray source as one selected playlist. This is explicitly invoked
-// by the Blu-ray control in ADVANCED, never inferred from the .iso extension.
-func probeMergerBluRay(ctx context.Context, path, kind string) ([]mergerStream, error) {
+// The ADVANCED tab must always pass a playlist chosen by the user. Do not
+// silently substitute the longest MPLS: real discs can contain looping decoys.
+func advancedBlurayPlaylist(playlists []blurayPlaylist, playlistNumber int) (blurayPlaylist, error) {
+	if playlistNumber < 0 || playlistNumber > 99999 {
+		return blurayPlaylist{}, errors.New("choose an explicit Blu-ray playlist in ADVANCED")
+	}
+	return selectBlurayPlaylist(playlists, fmt.Sprintf("%05d", playlistNumber))
+}
+
+// Probe a Blu-ray source using the explicitly selected playlist. ISO and
+// drive inputs still use the same native libbluray reader as before.
+func probeMergerBluRay(ctx context.Context, path, kind string, playlistNumber int) ([]mergerStream, error) {
 	if kind != "all" && kind != "video" && kind != "audio" && kind != "subtitle" {
 		return nil, fmt.Errorf("unsupported Blu-ray stream filter %q", kind)
 	}
@@ -24,7 +33,7 @@ func probeMergerBluRay(ctx context.Context, path, kind string) ([]mergerStream, 
 	if err != nil {
 		return nil, err
 	}
-	playlist, err := selectBlurayPlaylist(playlists, "")
+	playlist, err := advancedBlurayPlaylist(playlists, playlistNumber)
 	if err != nil {
 		return nil, err
 	}
