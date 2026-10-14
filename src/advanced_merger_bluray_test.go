@@ -61,3 +61,29 @@ func TestBlurayGUIOutputNaming(t *testing.T) {
 func mkdirBlurayTestRoot(root string) error {
 	return os.MkdirAll(filepath.Join(root, "BDMV", "PLAYLIST"), 0755)
 }
+
+func TestAdvancedBlurayRequiresExplicitPlaylist(t *testing.T) {
+	// A real BD50 exposed 15-hour looping decoys. ADVANCED must never pick
+	// those just because their duration exceeds the desired movie.
+	playlists := []blurayPlaylist{
+		{Number: 152, DurationTicks: 45000 * 60 * 60 * 15},
+		{Number: 612, DurationTicks: 45000 * (3*60*60 + 22)},
+		{Number: 800, DurationTicks: 45000 * (3*60*60 + 22)},
+		{Number: 1056, DurationTicks: 45000 * 60 * 60 * 15},
+	}
+	if _, err := advancedBlurayPlaylist(playlists, -1); err == nil {
+		t.Fatal("ADVANCED silently selected longest playlist without a choice")
+	}
+	for _, want := range []int{612, 800} {
+		got, err := advancedBlurayPlaylist(playlists, want)
+		if err != nil || got.Number != want {
+			t.Fatalf("playlist %05d: got %05d, err %v", want, got.Number, err)
+		}
+	}
+	if _, err := advancedBlurayPlaylist(playlists, 799); err == nil {
+		t.Fatal("ADVANCED accepted a nonexistent playlist")
+	}
+	if _, err := advancedBlurayPlaylist(playlists, 100000); err == nil {
+		t.Fatal("ADVANCED accepted an invalid playlist number")
+	}
+}
