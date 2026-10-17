@@ -19,6 +19,7 @@ type mergerStream struct {
 	Track          trackOption
 	BluRay         bool
 	BluRayPlaylist int
+	MetadataEdited bool // explicit language/title changes requested in ADVANCED
 }
 
 func probeMergerFile(ctx context.Context, probe, path, kind string) ([]mergerStream, error) {
@@ -98,6 +99,8 @@ func probeMergerFile(ctx context.Context, probe, path, kind string) ([]mergerStr
 }
 
 func validateMergerChapters(ctx context.Context, probe, path string) error {
+	_, matched, err := parseOGMChapters(path)
+	if matched || err != nil { return err }
 	return validateMergerChapterSource(ctx, probe, path, false)
 }
 
@@ -158,7 +161,18 @@ func resolveMergerSelection(streams []mergerStream, override string) ([]mergerSt
 	return media, chapter, nil
 }
 
+// Legacy callers and tests use the MKV semantics unchanged.
 func mergerArgs(streams []mergerStream, chapters, output string) ([]string, error) {
+	return mergerArgsForFormat(streams, chapters, output, "matroska")
+}
+
+func mergerArgsForFormat(streams []mergerStream, chapters, output, format string) ([]string, error) {
+	if format != "matroska" && format != "mpegts" {
+		return nil, fmt.Errorf("unsupported ADVANCED MUX format %q", format)
+	}
+	if format == "mpegts" {
+		chapters = "" // M2TS has no chapter track.
+	}
 	blurayPlaylists, err := mergerBluraySelections(streams)
 	if err != nil {
 		return nil, err
@@ -238,14 +252,31 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 		args = append(args, fmt.Sprint(chapterIndex))
 	}
 	args = append(args, "-c", "copy")
-	for _, index := range mergerBlurayLPCMAudioIndexes(streams) {
-		args = append(args, fmt.Sprintf("-c:a:%d", index), "flac")
+	if format == "matroska" {
+		for _, index := range mergerBlurayLPCMAudioIndexes(streams) {
+			args = append(args, fmt.Sprintf("-c:a:%d", index), "flac")
+		}
 	}
 	args = append(args, mergerBlurayMetadataArgs(streams)...)
-	return append(args, "-f", "matroska", output), nil
+	if format == "mpegts" {
+		args = append(args, "-mpegts_m2ts_mode", "1")
+	}
+	return append(args, "-f", format, output), nil
 }
 
 func muxMerger(ctx context.Context, tools toolPaths, streams []mergerStream, chapters, output string) error {
+	format := "matroska"
+	switch strings.ToLower(filepath.Ext(output)) {
+	case ".mkv":
+	case ".m2ts":
+		format = "mpegts"
+	default:
+		return errors.New("ADVANCED MUX output must end in .mkv or .m2ts")
+	}
+	if format == "mpegts" {
+		if err := validateAdvancedM2TSStreams(streams); err != nil { return err }
+		chapters = "" // Skip chapter selection, chapter override and metadata input.
+	}
 	movieChapters := chapters == ""
 	originalStreams := streams
 	containsBluRay := selectedBluRayMergerStreams(streams)
@@ -282,6 +313,23 @@ func muxMerger(ctx context.Context, tools toolPaths, streams []mergerStream, cha
 		return selectionErr
 	}
 	if chapters != "" {
+		ogm, matched, parseErr := parseOGMChapters(chapters)
+		if parseErr != nil { return parseErr }
+		if matched {
+			// Last chapter should reach the actual media duration whenever
+			// it is available, not end at its starting timestamp.
+			estimatedEnd := mergerSelectedDuration(ctx, tools.ffprobe, originalStreams)
+			tmp, err := os.CreateTemp(filepath.Dir(output), ".muksmatt-bluray-chapters-*.ffmeta")
+			if err != nil { return err }
+			defer os.Remove(tmp.Name())
+			if _, err := tmp.Write(ogmChaptersFFMetadata(ogm, estimatedEnd)); err != nil {
+				tmp.Close()
+				return err
+			}
+			if err := tmp.Close(); err != nil { return err }
+			chapters = tmp.Name()
+			movieChapters = false
+		}
 		// Blu-ray MPLS chapter marks must be emitted as FFmetadata. The
 		// bluray: transport alone does not expose those chapters reliably.
 		for _, item := range originalStreams {
@@ -323,7 +371,7 @@ func muxMerger(ctx context.Context, tools toolPaths, streams []mergerStream, cha
 	if err != nil {
 		return err
 	}
-	args, err := mergerArgs(originalStreams, chapters, partial)
+	args, err := mergerArgsForFormat(originalStreams, chapters, partial, format)
 	if err != nil {
 		os.Remove(partial)
 		return err
