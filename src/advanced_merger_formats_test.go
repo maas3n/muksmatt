@@ -124,3 +124,59 @@ func TestAdvancedM2TSIntegrationVideoAudioNoChapters(t *testing.T) {
 		t.Fatalf("M2TS stream inventory mismatch: %s",probe)
 	}
 }
+
+func TestAdvancedMuxOGMChaptersAndImportedTrackLanguageIntegration(t *testing.T) {
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil { t.Skip("FFmpeg unavailable") }
+	ffprobe, err := exec.LookPath("ffprobe")
+	if err != nil { t.Skip("FFprobe unavailable") }
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+	defer cancel()
+	dir := t.TempDir()
+	movie := filepath.Join(dir, "movie.mkv")
+	srt := filepath.Join(dir, "Norwegian.srt")
+	ogm := filepath.Join(dir, "ChaptersNew.txt")
+	if err := os.WriteFile(srt, []byte("1\n00:00:00,000 --> 00:00:01,700\nHei!\n"), 0600); err != nil { t.Fatal(err) }
+	if err := os.WriteFile(ogm, []byte("CHAPTER01=00:00:00.000\nCHAPTER01NAME=hei1\nCHAPTER02=00:00:00.500\nCHAPTER02NAME=hei2\n"), 0600); err != nil { t.Fatal(err) }
+	if _, err := runMergerCommand(ctx, ffmpeg,
+		"-v", "error", "-f", "lavfi", "-i", "color=size=64x64:rate=25:duration=2",
+		"-f", "lavfi", "-i", "sine=duration=2",
+		"-map", "0:v", "-map", "1:a", "-c:v", "mpeg2video", "-c:a", "ac3",
+		movie); err != nil { t.Fatal(err) }
+	movieTracks, err := probeMergerFile(ctx, ffprobe, movie, "all")
+	if err != nil { t.Fatal(err) }
+	sub, err := probeMergerFile(ctx, ffprobe, srt, "subtitle")
+	if err != nil { t.Fatal(err) }
+	merged := append(movieTracks, sub...)
+	for i := range merged {
+		if merged[i].Track.Kind == "audio" {
+			if err := setAdvancedStreamMetadata(&merged[i], "eng", "English Dolby Digital"); err != nil { t.Fatal(err) }
+		}
+		if merged[i].Track.Kind == "subtitle" {
+			if err := setAdvancedStreamMetadata(&merged[i], "nor", "Norwegian OCR"); err != nil { t.Fatal(err) }
+		}
+	}
+	out := filepath.Join(dir, "done.mkv")
+	if err := muxMerger(ctx, toolPaths{ffmpeg:ffmpeg,ffprobe:ffprobe},merged,ogm,out); err != nil { t.Fatal(err) }
+	payload, err := runMergerCommand(ctx, ffprobe,"-v","error","-show_streams","-show_chapters","-of","json",out)
+	if err != nil { t.Fatal(err) }
+	var probed struct {
+		Streams []struct { CodecType string `json:"codec_type"`; Tags map[string]string `json:"tags"` } `json:"streams"`
+		Chapters []struct {Tags map[string]string `json:"tags"`} `json:"chapters"`
+	}
+	if err := json.Unmarshal(payload,&probed); err != nil { t.Fatal(err) }
+	if len(probed.Streams)!=3 || len(probed.Chapters)!=2 {
+		t.Fatalf("output missing chapter rows or tracks: %s",payload)
+	}
+	if probed.Chapters[0].Tags["title"]!="hei1" || probed.Chapters[1].Tags["title"]!="hei2" {
+		t.Fatalf("chapter names missing: %s",payload)
+	}
+	for _, row := range probed.Streams {
+		switch row.CodecType {
+		case "audio":
+			if row.Tags["language"]!="eng" || row.Tags["title"]!="English Dolby Digital" { t.Fatalf("audio metadata missing: %s",payload) }
+		case "subtitle":
+			if row.Tags["language"]!="nor" || row.Tags["title"]!="Norwegian OCR" { t.Fatalf("SRT metadata missing: %s",payload) }
+		}
+	}
+}
