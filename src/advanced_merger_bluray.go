@@ -219,6 +219,12 @@ func mergerBlurayMetadataArgs(streams []mergerStream) []string {
 		default:
 			continue
 		}
+		if item.MetadataEdited {
+			// Explicit edits override even external AC-3/SRT input metadata.
+			args = append(args, "-metadata:s:"+spec, "language="+item.Track.Language)
+			args = append(args, "-metadata:s:"+spec, "title="+item.Track.Title)
+			continue
+		}
 		if !item.BluRay {
 			continue
 		}
