@@ -171,7 +171,14 @@ func mergerArgsForFormat(streams []mergerStream, chapters, output, format string
 		return nil, fmt.Errorf("unsupported ADVANCED MUX format %q", format)
 	}
 	if format == "mpegts" {
-		chapters = "" // M2TS has no chapter track.
+		// Keep chapter rows out of the stream planner too, including direct
+		// mergerArgsForFormat callers (not only the GUI muxMerger path).
+		filtered := make([]mergerStream, 0, len(streams))
+		for _, stream := range streams {
+			if stream.Track.Kind != "chapters" { filtered = append(filtered, stream) }
+		}
+		streams = filtered
+		chapters = ""
 	}
 	blurayPlaylists, err := mergerBluraySelections(streams)
 	if err != nil {
