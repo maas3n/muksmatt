@@ -31,10 +31,10 @@ func TestMergerDVDOptionsStayWithTheirInput(t *testing.T) {
 	for _, dvd := range []string{"disc.iso", "/movies/VIDEO_TS"} {
 		for _, dvdFirst := range []bool{false, true} {
 			streams := []mergerStream{
-				{"movie.mkv", trackOption{Index: 0, Kind: "video"}},
-				{"movie.mkv", trackOption{Index: 2, Kind: "subtitle"}},
-				{dvd, trackOption{DVDTitle: 2, Index: 1, Kind: "audio"}},
-				{"extra.ac3", trackOption{Index: 0, Kind: "audio"}},
+				{Path: "movie.mkv", Track: trackOption{Index: 0, Kind: "video"}},
+				{Path: "movie.mkv", Track: trackOption{Index: 2, Kind: "subtitle"}},
+				{Path: dvd, Track: trackOption{DVDTitle: 2, Index: 1, Kind: "audio"}},
+				{Path: "extra.ac3", Track: trackOption{Index: 0, Kind: "audio"}},
 			}
 			if dvdFirst {
 				streams[0], streams[2] = streams[2], streams[0]
@@ -93,7 +93,7 @@ func TestOrdinaryMergerAndTabInputsHaveNoDVDProbeOverrides(t *testing.T) {
 		if strings.HasSuffix(path, ".srt") {
 			kind = "subtitle"
 		}
-		streams = append(streams, mergerStream{path, trackOption{Index: 0, Kind: kind}})
+		streams = append(streams, mergerStream{Path: path, Track: trackOption{Index: 0, Kind: kind}})
 	}
 	args, err := mergerArgs(streams, "chapters.txt", "output.mkv")
 	if err != nil {

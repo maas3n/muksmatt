@@ -108,6 +108,7 @@ const (
 
 const (
 	idSourceEdit       = 1001
+	idSourceType       = 1015
 	idDVDButton        = 1002
 	idISOButton        = 1003
 	idDriveButton      = 1014
@@ -197,7 +198,9 @@ type titleInfo struct {
 type ffprobeResult struct {
 	Streams []struct {
 		Index         int               `json:"index"`
+		ID            string            `json:"id"`
 		CodecName     string            `json:"codec_name"`
+		Profile       string            `json:"profile"`
 		CodecType     string            `json:"codec_type"`
 		Width         int               `json:"width"`
 		Height        int               `json:"height"`
@@ -218,6 +221,7 @@ type ffprobeChapterResult struct {
 type application struct {
 	hwnd             uintptr
 	sourceEdit       uintptr
+	sourceTypeCombo  uintptr
 	sourceDVDButton  uintptr
 	sourceISOButton  uintptr
 	sourceDriveButton uintptr

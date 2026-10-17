@@ -62,7 +62,7 @@ func TestAdvancedMergerAndBatchTabs(t *testing.T) {
 		t.Fatal("BATCH tab is missing BATCH REMUX")
 	}
 
-	var media, dvdDrive, audioStreams, subtitleStreams, chapterFile, demux, mux bool
+	var media, dvdDrive, audioStreams, subtitleStreams, chapterFile, metadataEditor, demux, mux bool
 	var activity *widget.ProgressBarInfinite
 	walkLinuxCanvas(tabs.Items[1].Content, func(obj fyne.CanvasObject) {
 		switch o := obj.(type) {
@@ -76,8 +76,10 @@ func TestAdvancedMergerAndBatchTabs(t *testing.T) {
 				audioStreams = true
 			case "ADD SUBTITLE(Only subtitle streams will be Included)":
 				subtitleStreams = true
-			case "ADD CHAPTER .txt FILE(FFMETADATA1 Format)":
+			case "ADD CHAPTER FILE (OGM / FFMETADATA1 / MKV)":
 				chapterFile = true
+			case "EDIT TRACK METADATA":
+				metadataEditor = true
 			case "DEMUX":
 				demux = true
 			case "MUX":
@@ -90,6 +92,7 @@ func TestAdvancedMergerAndBatchTabs(t *testing.T) {
 	if !media || !dvdDrive || !audioStreams || !subtitleStreams || !chapterFile {
 		t.Fatal("Advanced Merger source buttons are incomplete")
 	}
+	if !metadataEditor { t.Fatal("ADVANCED is missing editable audio/subtitle metadata") }
 	if !demux || !mux {
 		t.Fatal("Advanced Merger is missing its MUX/DEMUX buttons")
 	}
