@@ -72,8 +72,9 @@ func createMergerWindowsControls(hwnd, hInstance uintptr) {
 	col := LVCOLUMNW{Mask: LVCF_WIDTH | LVCF_TEXT, Cx: scale96(725, dpi), PszText: utf16Ptr("File / stream")}
 	procSendMessageW.Call(mergerWindow.list, LVM_INSERTCOLUMNW, 0, uintptr(unsafe.Pointer(&col)))
 	add("BUTTON", "Clear streams", BS_PUSHBUTTON, 28, 365, 130, 28, mergerFirstID+3)
+	add("BUTTON", "Edit track metadata", BS_PUSHBUTTON, 171, 365, 185, 28, mergerFirstID+11)
 	mergerWindow.chapter = add("EDIT", "", WS_BORDER|ES_AUTOHSCROLL, 28, 405, 430, 28, 0)
-	add("BUTTON", "ADD CHAPTER .txt FILE(FFMETADATA1 Format)", BS_PUSHBUTTON, 468, 403, 310, 32, mergerFirstID+4)
+	add("BUTTON", "ADD CHAPTER (OGM/FFMETA/MKV)", BS_PUSHBUTTON, 468, 403, 310, 32, mergerFirstID+4)
 	mergerWindow.output = add("EDIT", loadSettings().OutputDir, WS_BORDER|ES_AUTOHSCROLL, 28, 445, 500, 28, 0)
 	if getText(mergerWindow.output) == "" {
 		setText(mergerWindow.output, defaultOutputDir())
@@ -81,7 +82,7 @@ func createMergerWindowsControls(hwnd, hInstance uintptr) {
 	add("BUTTON", "CHOOSE OUTPUT FOLDER", BS_PUSHBUTTON, 538, 443, 240, 32, mergerFirstID+5)
 	add("STATIC", "Output filename", 0, 28, 487, 120, 24, 0)
 	mergerWindow.name = add("EDIT", "merged.mkv", WS_BORDER|ES_AUTOHSCROLL, 155, 484, 623, 28, 0)
-	mergerWindow.status = add("STATIC", "Choose files and select streams. Chapters are optional (MKV or FFMETADATA1).", 0, 28, 522, 750, 24, 0)
+	mergerWindow.status = add("STATIC", "Choose files and streams; chapter files can be OGM text, FFMETADATA1 or MKV.", 0, 28, 522, 750, 24, 0)
 	// Use the same native Windows progress-control family as DVD Remux. Advanced
 	// Merger cannot know an exact percentage for arbitrary stream-copy inputs, so
 	// show the native marquee while an operation is active instead of a fake value.
@@ -427,10 +428,18 @@ func handleWindowsMergerCommand(id int) bool {
 			}
 		}
 		filename := strings.TrimSpace(getText(mergerWindow.name))
-		if filepath.Base(filename) != filename || !strings.HasSuffix(strings.ToLower(filename), ".mkv") {
-			messageBox(app.hwnd, "Output filename", "Enter a filename ending in .mkv without folders.", MB_OK|MB_ICONWARNING)
+		ext := strings.ToLower(filepath.Ext(filename))
+		if filepath.Base(filename) != filename || (ext != ".mkv" && ext != ".m2ts") {
+			messageBox(app.hwnd, "Output filename", "Enter a filename ending in .mkv or .m2ts without folders.", MB_OK|MB_ICONWARNING)
 			return true
 		}
+		choice := messageBox(app.hwnd, "ADVANCED MUX output format",
+			"Choose output container:\n\nYes: MKV (includes chapters)\nNo: M2TS (video, audio and Blu-ray PGS; NO chapters)\nCancel: return", 0x00000003|MB_ICONQUESTION)
+		if choice != 6 && choice != 7 { return true }
+		targetExt := ".mkv"
+		if choice == 7 { targetExt = ".m2ts" }
+		filename = strings.TrimSuffix(filename, filepath.Ext(filename)) + targetExt
+		setText(mergerWindow.name, filename)
 		dir, chap := getText(mergerWindow.output), getText(mergerWindow.chapter)
 		runWindowsMerger("Muxing selected streams…", func(ctx context.Context) (func(), error) {
 			if err := validateOutputDir(dir); err != nil {
@@ -446,6 +455,26 @@ func handleWindowsMergerCommand(id int) bool {
 			}
 			return func() { setText(mergerWindow.status, "Completed: "+out) }, nil
 		})
+	case 11:
+		idx, _, _ := procSendMessageW.Call(mergerWindow.list, LVM_FIRST+12, ^uintptr(0), 2)
+		if idx >= uintptr(len(mergerWindow.streams)) {
+			messageBox(app.hwnd, "Edit track metadata", "Select an audio or subtitle row (not just its checkbox), then click Edit track metadata.", MB_OK|MB_ICONWARNING)
+			return true
+		}
+		i := int(idx)
+		row := mergerWindow.streams[i]
+		if row.Track.Kind != "audio" && row.Track.Kind != "subtitle" {
+			messageBox(app.hwnd, "Edit track metadata", "Select an audio or subtitle track.", MB_OK|MB_ICONWARNING)
+			return true
+		}
+		showWindowsAdvancedMetadataEditor(row.Track.Language, row.Track.Title, func(lang, title string) error {
+			if err := setAdvancedStreamMetadata(&mergerWindow.streams[i], lang, title); err != nil { return err }
+			label := dvdSourceDisplayName(mergerWindow.streams[i].Path)+" — "+mergerWindow.streams[i].Track.Label()
+			procSendMessageW.Call(mergerWindow.list, LVM_FIRST+116, uintptr(i), uintptr(unsafe.Pointer(&LVITEMW{PszText:utf16Ptr(label)})))
+			setText(mergerWindow.status, "Track metadata updated: "+label)
+			return nil
+		})
+		return true
 	case 7:
 		var selected []mergerStream
 		hasVideo := false
