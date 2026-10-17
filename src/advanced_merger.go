@@ -275,7 +275,15 @@ func muxMerger(ctx context.Context, tools toolPaths, streams []mergerStream, cha
 	}
 	if format == "mpegts" {
 		if err := validateAdvancedM2TSStreams(streams); err != nil { return err }
-		chapters = "" // Skip chapter selection, chapter override and metadata input.
+		// Chapter rows and chapter overrides are not M2TS tracks.
+		// Strip them before resolveMergerSelection so that it never attempts
+		// to read a Blu-ray playlist's chapter metadata for this format.
+		media := make([]mergerStream, 0, len(streams))
+		for _, stream := range streams {
+			if stream.Track.Kind != "chapters" { media = append(media, stream) }
+		}
+		streams = media
+		chapters = ""
 	}
 	movieChapters := chapters == ""
 	originalStreams := streams
