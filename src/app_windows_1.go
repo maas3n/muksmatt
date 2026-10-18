@@ -204,6 +204,9 @@ func chooseWindowsPhysicalDVDDrive(owner uintptr) string {
 
 func windowProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
 	switch msg {
+	case wmShowRemuxBluRayPlaylist:
+		showPendingRemuxBluRayPlaylistChooser()
+		return 0
 	case mergerDoneMessage:
 		mergerWindow.pendingMu.Lock()
 		done := mergerWindow.pending
