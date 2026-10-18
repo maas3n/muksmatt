@@ -31,9 +31,13 @@ func cliBluray(ctx context.Context, args []string) {
 		fatalIf(err)
 		playlists, err := discoverBlurayForSource(ctx, source)
 		fatalIf(err)
-		fmt.Printf("%-10s %-14s %-10s\n", "PLAYLIST", "DURATION", "CHAPTERS")
+		best, err := selectBlurayPlaylist(playlists, "")
+		fatalIf(err)
+		fmt.Printf("%-10s %-14s %-10s %s\n", "PLAYLIST", "DURATION", "CHAPTERS", "DEFAULT")
 		for _, playlist := range playlists {
-			fmt.Printf("%05d      %-14s %-10d\n", playlist.Number, playlist.Duration(), len(playlist.Chapters))
+			mark := ""
+			if playlist.Number == best.Number { mark = "longest" }
+			fmt.Printf("%05d      %-14s %-10d %s\n", playlist.Number, playlist.Duration(), len(playlist.Chapters), mark)
 		}
 		fmt.Fprintln(os.Stderr, "Select the intended playlist explicitly with --playlist (longest can be a looping/decoy playlist).")
 	case "tracks", "metadata", "info":
