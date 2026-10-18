@@ -11,7 +11,7 @@ import (
 // Blu-ray scan. Never fall back to "longest" on an empty choice, since fake
 // looping playlists can be many hours longer than the actual film.
 func selectedRemuxBluRayPlaylist(titles []titleInfo, requested int) (titleInfo, error) {
-	if requested < 1 {
+	if requested < 0 {
 		return titleInfo{}, fmt.Errorf("choose a Blu-ray playlist before selecting streams")
 	}
 	for _, title := range titles {
