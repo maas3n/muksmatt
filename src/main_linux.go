@@ -287,7 +287,7 @@ func (g *linuxGUI) scan(ctx context.Context) error {
 	for _, t := range titles {
 		label := fmt.Sprintf("Title %d — %s", t.Number, formatDuration(t.Duration))
 		if bluray {
-			label = fmt.Sprintf("Playlist %05d — %s", t.Number, formatDuration(t.Duration))
+			label = remuxBluRayPlaylistLabel(t.Number, t.Duration)
 		}
 		opts = append(opts, label)
 		if !bluray && t.Number == best.Number {
@@ -367,7 +367,7 @@ func (g *linuxGUI) chooseRemuxBlurayPlaylist(titles []titleInfo, src string) {
 	labels := make([]string, 0, len(titles))
 	byLabel := make(map[string]titleInfo, len(titles))
 	for _, t := range titles {
-		label := fmt.Sprintf("Playlist %05d — %s", t.Number, formatDuration(t.Duration))
+		label := remuxBluRayPlaylistLabel(t.Number, t.Duration)
 		labels = append(labels, label)
 		byLabel[label] = t
 	}
@@ -381,9 +381,12 @@ func (g *linuxGUI) chooseRemuxBlurayPlaylist(titles []titleInfo, src string) {
 				if !ok {
 					return
 				}
-				title, chosen := byLabel[choice.Selected]
-				if !chosen {
-					dialog.ShowInformation("Playlist required", "Select a Blu-ray playlist before choosing streams.", g.window)
+				chosenTitle, chosen := byLabel[choice.Selected]
+				requested := 0
+				if chosen { requested = chosenTitle.Number }
+				title, selectionErr := selectedRemuxBluRayPlaylist(titles, requested)
+				if selectionErr != nil {
+					dialog.ShowInformation("Playlist required", selectionErr.Error(), g.window)
 					return
 				}
 				source, err := resolveBluraySource(g.sourceEntry.Text)
