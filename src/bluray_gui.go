@@ -26,7 +26,7 @@ func guiBlurayPlaylists(ctx context.Context, path string) ([]titleInfo, error) {
 	}
 	titles := make([]titleInfo, 0, len(playlists))
 	for _, playlist := range playlists {
-		titles = append(titles, titleInfo{Number: playlist.Number, Duration: playlist.Duration()})
+		titles = append(titles, titleInfo{Number: playlist.Number, Duration: playlist.Duration(), ChapterCount: len(playlist.Chapters)})
 	}
 	return titles, nil
 }
