@@ -17,7 +17,7 @@ func TestRemuxBluRayPlaylistRequiresExplicitChoice(t *testing.T) {
 		{Number: 800, Duration: 3*time.Hour + 22*time.Second},
 		{Number: 1056, Duration: 15*time.Hour + 16*time.Second},
 	}
-	if _, err := selectedRemuxBluRayPlaylist(playlists, 0); err == nil {
+	if _, err := selectedRemuxBluRayPlaylist(playlists, -1); err == nil {
 		t.Fatal("REMUX/DEMUX accepted an unselected playlist (must not default to longest)")
 	}
 	for _, number := range []int{612, 800, 152} {
@@ -34,6 +34,13 @@ func TestRemuxBluRayPlaylistRequiresExplicitChoice(t *testing.T) {
 			t.Fatalf("invalid playlist %d accepted", number)
 		}
 	}
+	if _, err := selectedRemuxBluRayPlaylist(playlists, 0); err == nil {
+		t.Fatal("accepted missing playlist zero when it is not among the discovered playlists")
+	}
+	zero := append(playlists, titleInfo{Number: 0, Duration: time.Minute})
+	if _, err := selectedRemuxBluRayPlaylist(zero, 0); err != nil {
+		t.Fatalf("valid playlist 00000 should be selectable explicitly: %v", err)
+	}
 	label := remuxBluRayPlaylistLabel(800, 3*time.Hour+22*time.Second)
 	if !strings.HasPrefix(label, "Playlist 00800 — ") {
 		t.Fatalf("playlist label lost five-digit ID: %q", label)
@@ -43,7 +50,7 @@ func TestRemuxBluRayPlaylistRequiresExplicitChoice(t *testing.T) {
 func TestRemuxBluRayPlaylistCancelCannotSelectAnything(t *testing.T) {
 	// The UI maps an empty chooser selection to 0; it must be rejected.
 	titles := []titleInfo{{Number:152,Duration:15*time.Hour},{Number:800,Duration:3*time.Hour}}
-	_, err := selectedRemuxBluRayPlaylist(titles, 0)
+	_, err := selectedRemuxBluRayPlaylist(titles, -1)
 	if err == nil || !strings.Contains(err.Error(), "choose") {
 		t.Fatalf("cancel / empty selection should be rejected: %v", err)
 	}
