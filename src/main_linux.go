@@ -290,7 +290,7 @@ func (g *linuxGUI) scan(ctx context.Context) error {
 			label = fmt.Sprintf("Playlist %05d — %s", t.Number, formatDuration(t.Duration))
 		}
 		opts = append(opts, label)
-		if t.Number == best.Number {
+		if !bluray && t.Number == best.Number {
 			selected = label
 		}
 	}
@@ -303,7 +303,11 @@ func (g *linuxGUI) scan(ctx context.Context) error {
 		g.titleSelect.Refresh()
 		g.titleSelect.SetSelected(selected)
 		g.progress.SetValue(1)
-		g.status.SetText(fmt.Sprintf("Found %d title(s)/playlist(s). Selected %d (%s) as the longest.", len(titles), best.Number, formatDuration(best.Duration)))
+		if bluray {
+			g.status.SetText(fmt.Sprintf("Found %d Blu-ray playlists. Choose the intended playlist before inspecting tracks.", len(titles)))
+		} else {
+			g.status.SetText(fmt.Sprintf("Found %d title(s). Selected %d (%s) as the longest.", len(titles), best.Number, formatDuration(best.Duration)))
+		}
 	})
 	return nil
 }
@@ -357,7 +361,66 @@ func (g *linuxGUI) selectedTitle() (string, titleInfo, error) {
 	}
 	return "", titleInfo{}, errors.New("selected title is no longer available; click SCAN/SELECT STREAMS again")
 }
+// Blu-ray needs an explicit playlist decision before we inspect the tracks.
+// DVD and MKV keep the existing longest-title and one-click workflows.
+func (g *linuxGUI) chooseRemuxBlurayPlaylist(titles []titleInfo, src string) {
+	labels := make([]string, 0, len(titles))
+	byLabel := make(map[string]titleInfo, len(titles))
+	for _, t := range titles {
+		label := fmt.Sprintf("Playlist %05d — %s", t.Number, formatDuration(t.Duration))
+		labels = append(labels, label)
+		byLabel[label] = t
+	}
+	fyne.Do(func() {
+		choice := widget.NewSelect(labels, nil)
+		choice.PlaceHolder = "Choose a playlist (do not rely on longest)"
+		note := widget.NewLabel("Select the intended Blu-ray playlist. Some discs contain fake-long looping playlists.")
+		note.Wrapping = fyne.TextWrapWord
+		dialog.NewCustomConfirm("Choose REMUX/DEMUX Blu-ray playlist", "Use playlist", "Cancel",
+			container.NewVBox(note, choice), func(ok bool) {
+				if !ok {
+					return
+				}
+				title, chosen := byLabel[choice.Selected]
+				if !chosen {
+					dialog.ShowInformation("Playlist required", "Select a Blu-ray playlist before choosing streams.", g.window)
+					return
+				}
+				source, err := resolveBluraySource(g.sourceEntry.Text)
+				if err != nil || g.sourceType.Selected != "Blu-ray" || filepath.Clean(source.Input) != filepath.Clean(src) {
+					dialog.ShowInformation("Source changed", "The Blu-ray source changed. Scan again before choosing streams.", g.window)
+					return
+				}
+				g.mu.Lock()
+				valid := g.titlesSource == src
+				g.mu.Unlock()
+				if !valid {
+					dialog.ShowInformation("Scan required", "The playlist list is out of date. Scan again.", g.window)
+					return
+				}
+				g.titleSelect.SetSelected(choice.Selected)
+				g.startAsync(fmt.Sprintf("Reading Blu-ray playlist %05d tracks…", title.Number), func(ctx context.Context) error {
+					return g.showMetadataFor(ctx, src, title)
+				})
+			}, g.window).Show()
+	})
+}
+
 func (g *linuxGUI) scanSelectStreams(ctx context.Context) error {
+	if g.sourceType.Selected == "Blu-ray" {
+		if err := g.scan(ctx); err != nil {
+			return err
+		}
+		g.mu.Lock()
+		titles := append([]titleInfo(nil), g.titles...)
+		src := g.titlesSource
+		g.mu.Unlock()
+		if len(titles) == 0 {
+			return errors.New("Blu-ray contains no readable playlists")
+		}
+		g.chooseRemuxBlurayPlaylist(titles, src)
+		return nil
+	}
 	if src, title, err := g.selectedTitle(); err == nil {
 		return g.showMetadataFor(ctx, src, title)
 	}
