@@ -382,7 +382,7 @@ func (g *linuxGUI) chooseRemuxBlurayPlaylist(titles []titleInfo, src string) {
 					return
 				}
 				chosenTitle, chosen := byLabel[choice.Selected]
-				requested := 0
+				requested := -1
 				if chosen { requested = chosenTitle.Number }
 				title, selectionErr := selectedRemuxBluRayPlaylist(titles, requested)
 				if selectionErr != nil {
