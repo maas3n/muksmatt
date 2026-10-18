@@ -27,6 +27,12 @@ var advancedBDPlaylistDialog *windowsAdvancedBDPlaylistDialog
 // (including possible decoys) so the user can choose by number, rather than
 // silently running an arbitrary longest playlist through FFmpeg.
 func showWindowsAdvancedBluRayPlaylistChooser(playlists []blurayPlaylist, onChoose func(int)) {
+	showWindowsBluRayPlaylistChooser("Choose Blu-ray playlist — ADVANCED", playlists, onChoose)
+}
+
+// Reuse the same native selector in REMUX/DEMUX; neither workflow silently
+// defaults to the longest (potentially looping) playlist.
+func showWindowsBluRayPlaylistChooser(title string, playlists []blurayPlaylist, onChoose func(int)) {
 	if advancedBDPlaylistDialog != nil || len(playlists) == 0 {
 		return
 	}
@@ -46,7 +52,7 @@ func showWindowsAdvancedBluRayPlaylistChooser(playlists []blurayPlaylist, onChoo
 	sc := func(n int32) uintptr { return uintptr(scale96(n, dpi)) }
 	hwnd, _, _ := procCreateWindowExW.Call(WS_EX_CONTROLPARENT,
 		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(utf16Ptr("Choose Blu-ray playlist — ADVANCED"))),
+		uintptr(unsafe.Pointer(utf16Ptr(title))),
 		uintptr(WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU),
 		CW_USEDEFAULT, CW_USEDEFAULT, sc(650), sc(225),
 		app.hwnd, 0, hInstance, 0)
