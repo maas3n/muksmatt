@@ -33,8 +33,9 @@ const (
 )
 
 type titleInfo struct {
-	Number   int
-	Duration time.Duration
+	Number       int
+	Duration     time.Duration
+	ChapterCount int // Blu-ray playlist chapter count; DVD title behavior unchanged.
 }
 type ffprobeResult struct {
 	Streams []struct {
