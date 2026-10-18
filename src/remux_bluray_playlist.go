@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 )
 
 // An explicit playlist number from the user is required for REMUX/DEMUX
@@ -22,6 +21,6 @@ func selectedRemuxBluRayPlaylist(titles []titleInfo, requested int) (titleInfo, 
 	return titleInfo{}, fmt.Errorf("Blu-ray playlist %05d is no longer available; scan again", requested)
 }
 
-func remuxBluRayPlaylistLabel(number int, duration time.Duration) string {
-	return fmt.Sprintf("Playlist %05d — %s", number, formatDuration(duration))
+func remuxBluRayPlaylistLabel(title titleInfo) string {
+	return fmt.Sprintf("Playlist %05d — %s — %d chapters", title.Number, formatDuration(title.Duration), title.ChapterCount)
 }
