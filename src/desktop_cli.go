@@ -58,8 +58,11 @@ Usage:
   muksmatt-cli scan SOURCE
   muksmatt-cli metadata [--title N] SOURCE
   muksmatt-cli remux [--title N] [--output DIR] [--no-chapters] [--streams 0,1,2] SOURCE
-  muksmatt-cli bluray scan BDMV_ROOT
-  muksmatt-cli bluray remux --output MOVIE.mkv [--playlist 00800] [--streams 0,1] [--no-chapters] BDMV_ROOT
+  muksmatt-cli bluray scan BLURAY_SOURCE
+  muksmatt-cli bluray tracks --playlist 00800 BLURAY_SOURCE
+  muksmatt-cli bluray remux --playlist 00800 --output MOVIE.mkv [--streams 0,1] [--no-chapters] BLURAY_SOURCE
+  muksmatt-cli bluray remux --playlist 00800 --output MOVIE.m2ts [--streams 0,1] BLURAY_SOURCE
+  muksmatt-cli bluray demux --playlist 00800 --output DIR [--streams 0,1,9] [--video elementary|m2ts|both] [--no-chapters] BLURAY_SOURCE
   muksmatt-cli --batch [--log FILE] MOVIES_ROOT [OUTPUT_ROOT]
   muksmatt-cli --version
 
@@ -72,7 +75,8 @@ is selected automatically, and all streams are remuxed losslessly to MKV. When
 OUTPUT_ROOT is omitted, each MKV is written beside its ISO or VIDEO_TS folder.
 --log is optional and appends batch activity to the chosen file.
 
-Blu-ray CLI requires libbluray-enabled FFmpeg and FFprobe; protected Blu-rays need configured libaacs/libbdplus and valid key data. Blu-ray folders and mounted disc roots are supported in this stage; raw ISO and devices are not yet enabled.
+Blu-ray CLI uses the same libbluray-enabled FFmpeg/FFprobe and native playlist helper as the GUI. Blu-ray BDMV folders, supported Blu-ray ISO images and accessible drives are accepted; protected discs require configured AACS/BD+ key support. Always scan and specify --playlist because fake looping playlists may be the longest.
+Blu-ray DEMUX writes selected elementary tracks directly, without creating an intermediate MKV. --video m2ts writes video-only .m2ts alongside separate selected audio/subtitle tracks; M2TS remux combines compatible audio/video/PGS, excludes chapters and rejects unsupported text subtitles.
 
 The CLI first uses compatible ffmpeg/ffprobe binaries already installed on PATH.
 If system FFmpeg lacks the dvdvideo demuxer, muKsMaTT prepares its pinned fallback.
