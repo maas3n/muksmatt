@@ -287,7 +287,7 @@ func (g *linuxGUI) scan(ctx context.Context) error {
 	for _, t := range titles {
 		label := fmt.Sprintf("Title %d — %s", t.Number, formatDuration(t.Duration))
 		if bluray {
-			label = remuxBluRayPlaylistLabel(t.Number, t.Duration)
+			label = remuxBluRayPlaylistLabel(t)
 		}
 		opts = append(opts, label)
 		if !bluray && t.Number == best.Number {
@@ -367,7 +367,7 @@ func (g *linuxGUI) chooseRemuxBlurayPlaylist(titles []titleInfo, src string) {
 	labels := make([]string, 0, len(titles))
 	byLabel := make(map[string]titleInfo, len(titles))
 	for _, t := range titles {
-		label := remuxBluRayPlaylistLabel(t.Number, t.Duration)
+		label := remuxBluRayPlaylistLabel(t)
 		labels = append(labels, label)
 		byLabel[label] = t
 	}
