@@ -122,7 +122,7 @@ func blurayCLIUsage() string {
 
 Use scan first to select the correct MPLS playlist; the longest can be fake.
 M2TS remux includes compatible video/audio/PGS streams but no chapters or SRT text subtitles.
-DEMUX reads directly through libbluray and produces separate elementary tracks.
+DEMUX reads directly through libbluray and produces separate elementary tracks, without an intermediate MKV.
 --video m2ts means video-only M2TS plus separate audio/subtitle files.
 --video both exports both native video and video-only M2TS alongside audio/subtitle files.`
 }
