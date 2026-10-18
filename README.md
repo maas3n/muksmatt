@@ -62,27 +62,31 @@ muKsMaTT keeps the established DVD and general-media workflows while adding **ex
 
 ### Blu-ray — experimental DVD-independent path
 
-Blu-ray support is currently exposed through **desktop CLI commands on Windows and Linux**, and through an **experimental Android/ChromeOS native SAF remux path**. Do not assume the existing DVD **REMUX/DEMUX** GUI or **ADVANCED** tab provides a finished Blu-ray import, Blu-ray GUI remux or Blu-ray elementary-stream demux feature.
+Blu-ray support on Windows and Linux is available in **REMUX/DEMUX**, **ADVANCED**, and the in-app **CLI** tab (as well as the packaged desktop CLI). Android/ChromeOS has a separate experimental native SAF remux implementation. The desktop Blu-ray reader follows a selected MPLS playlist using libbluray and supports direct stream extraction without a temporary MKV.
 
-The desktop CLI recognizes accessible **BDMV disc-root folders**, **Blu-ray ISO images** and **optical-drive paths** where the OS grants access. It can enumerate MPLS playlists, choose the longest by default or accept a specific playlist number, select individual video/audio/subtitle streams, and remux to MKV with optional playlist chapters. Compatible streams are copied; selected Blu-ray LPCM audio is converted to FLAC losslessly. FFmpeg/FFprobe and the native libbluray navigator are bundled with release packages that need them.
+The desktop CLI recognizes accessible **BDMV disc-root folders**, **Blu-ray ISO images** and **optical-drive paths** where the OS grants access. It can scan MPLS playlists, display track PIDs/languages/codecs, directly DEMUX selected elementary streams (or video-only M2TS), and REMUX to MKV or M2TS. Use **--playlist** to explicitly select the correct title: deliberately looping or obfuscated playlists can be longer than the movie. MKV can preserve chapters and losslessly convert Blu-ray LPCM to FLAC; M2TS stream-copies compatible video/audio/PGS into one container and excludes chapters. Blu-ray CLI uses the same FFmpeg/FFprobe/libbluray tools as the GUI.
 
 **Desktop CLI examples** (use `muksmatt-cli.exe` on Windows, included in the Setup and Portable packages):
 
 ```bash
-# List available playlists
-muksmatt-cli bluray scan /path/to/bluray-disc-root
+# List MPLS playlists, then inspect the correct one
+muksmatt-cli bluray scan "/path/to/bluray-disc-root"
+muksmatt-cli bluray tracks --playlist 00800 "/path/to/bluray-disc-root"
 
-# Remux the longest available playlist to MKV
-muksmatt-cli bluray remux --output movie.mkv /path/to/bluray-disc-root
+# Remux selected Blu-ray streams into MKV, retaining playlist chapters
+muksmatt-cli bluray remux --playlist 00800 --output movie.mkv "/path/to/bluray-disc-root"
 
-# Choose a playlist and specific input stream indexes
-muksmatt-cli bluray remux --playlist 00800 --streams 0,1,2 --output movie.mkv /path/to/bluray-disc-root
+# M2TS combines compatible video, audio and PGS (no chapters)
+muksmatt-cli bluray remux --playlist 00800 --output movie.m2ts "/path/to/bluray-disc-root"
 
-# Omit playlist chapters
-muksmatt-cli bluray remux --no-chapters --output movie.mkv /path/to/bluray-disc-root
+# Directly extract H.264 and a selected DTS/PGS stream; no temporary MKV
+muksmatt-cli bluray demux --playlist 00800 --output "/existing/output/folder" --streams 0,1,9 "/path/to/bluray-disc-root"
+
+# Alternatively demux both native video (.h264/.hevc) and video-only .m2ts
+muksmatt-cli bluray demux --playlist 00800 --output "/existing/output/folder" --video both "/path/to/bluray-disc-root"
 ```
 
-Substitute an accessible `.iso` or supported optical-drive path for the disc root; list playlists first and use `--playlist` only for an ID reported by `scan`. The output must be a **new `.mkv`**; existing files are not overwritten. On Linux the Standalone package also supports its documented CLI mode.
+Substitute an accessible `.iso` or supported optical-drive path for the disc root. Existing output files are not overwritten; for DEMUX, `--output` names an **existing directory** and the application creates its own extraction subfolder. The in-app **CLI** tab offers Blu-ray Scan / Tracks / REMUX / DEMUX templates; replace `SOURCE` and `OUTPUT_DIR` before running. On Linux the Standalone also accepts the `--cli` option.
 
 **Blu-ray limitations:** CI has exercised *self-authored, unencrypted* BDMV and ISO fixtures, chapter mapping, stream selection, and LPCM-to-FLAC parity; genuine physical Blu-ray drives, protected commercial discs, real-device Android compatibility and **AACS/BD+ decryption** remain unverified. Bundled `libaacs`/`libbdplus` libraries do **not** imply working protection handling or bundled keys. The desktop FFmpeg `bluray:` protocol can reject playlists shorter than **180 seconds** ([issue #20](https://github.com/maas3n/muksmatt/issues/20)). Android USB optical-drive input is not a confirmed supported feature.
 
@@ -90,7 +94,7 @@ For the actual qualification status, see the [Blu-ray real-media validation matr
 
 ### DVD and MKV — REMUX/DEMUX
 
-The main **REMUX/DEMUX** tab handles DVD and MKV sources (not the separate experimental Blu-ray CLI path). It accepts:
+The main **REMUX/DEMUX** tab handles DVD, MKV and experimental Blu-ray sources. It accepts:
 
 - DVD folders and `VIDEO_TS`
 - unmounted DVD ISO images
@@ -191,7 +195,7 @@ muksmatt-cli --batch --log=/path/to/muksmatt-batch.log /path/to/Movies /path/to/
 
 Android/ChromeOS also includes an in-app CLI with `scan`, `metadata`, `remux`, and `--batch` using Storage Access Framework content URIs. Android remux supports explicit `--streams` selection and `--no-chapters`.
 
-BATCH and CLI are DVD-oriented workflows; MKV source selection and raw-stream extraction belong to the GUI DVD Remux/Demux and Advanced Merger workflows.
+**BATCH remains DVD-oriented.** On Windows and Linux, the CLI supports DVD and Blu-ray operations; Blu-ray video, audio and PGS tracks can be extracted directly without constructing an intermediate MKV. For mixed-source MUX with editable imported-track metadata, use ADVANCED.
 
 ## Track selection and metadata
 
