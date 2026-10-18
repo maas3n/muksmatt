@@ -56,8 +56,9 @@ func showPendingRemuxBluRayPlaylistChooser() {
 		}
 		app.titlesMu.Lock()
 		valid := strings.EqualFold(filepath.Clean(app.titlesSource), filepath.Clean(source))
+		_, selectedErr := selectedRemuxBluRayPlaylist(app.titles, number)
 		index := -1
-		if valid {
+		if valid && selectedErr == nil {
 			for i, title := range app.titles {
 				if title.Number == number { index = i; break }
 			}
@@ -97,7 +98,7 @@ func scanWindowsRemuxBluRay(ctx context.Context) error {
 	clearWindowsTrackSelection()
 	procSendMessageW.Call(app.titleCombo, CB_RESETCONTENT, 0, 0)
 	for _, title := range titles {
-		label := fmt.Sprintf("Playlist %05d — %s", title.Number, formatDuration(title.Duration))
+		label := remuxBluRayPlaylistLabel(title.Number, title.Duration)
 		procSendMessageW.Call(app.titleCombo, CB_ADDSTRING, 0, uintptr(unsafe.Pointer(utf16Ptr(label))))
 	}
 	// -1 means no selection; never preselect the fake-long '00152' playlist.
