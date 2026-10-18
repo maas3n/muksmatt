@@ -20,17 +20,54 @@
 #include <libbluray/bluray.h>
 
 static int usage(void) {
-    fputs("Usage: muksmatt-bluray-nav SOURCE (Blu-ray folder, ISO, or optical device)\n", stderr);
+    fputs("Usage: muksmatt-bluray-nav SOURCE\n       muksmatt-bluray-nav --stream-languages PLAYLIST SOURCE\n", stderr);
     return 2;
 }
 
+static int valid_lang(const uint8_t lang[4]) {
+    if (lang[3] != 0) return 0;
+    for (unsigned i = 0; i < 3; ++i) {
+        if (!((lang[i] >= 'a' && lang[i] <= 'z') ||
+              (lang[i] >= 'A' && lang[i] <= 'Z'))) return 0;
+    }
+    return 1;
+}
+
+static int print_stream_languages(const BLURAY_TITLE_INFO *title) {
+    unsigned records = 0;
+    puts("MUKSMATT_BD_LANG_1");
+    for (uint32_t c = 0; c < title->clip_count; ++c) {
+        const BLURAY_CLIP_INFO *clip = &title->clips[c];
+        for (int category = 0; category < 2; ++category) {
+            const BLURAY_STREAM_INFO *streams = category == 0 ? clip->audio_streams : clip->pg_streams;
+            unsigned count = category == 0 ? clip->audio_stream_count : clip->pg_stream_count;
+            if (count && !streams) return 1;
+            for (unsigned i = 0; i < count; ++i) {
+                if (++records > 16384) return 1;
+                if (streams[i].pid == 0 || streams[i].pid >= 8192 || !valid_lang(streams[i].lang)) continue;
+                printf("S\t%c\t%u\t%c%c%c\n", category == 0 ? 'a' : 's',
+                       streams[i].pid, streams[i].lang[0], streams[i].lang[1], streams[i].lang[2]);
+            }
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char **argv) {
-    if (argc != 2 || !argv[1] || !argv[1][0]) return usage();
-    if (!strcmp(argv[1], "--version")) {
+    const int language_mode = argc == 4 && !strcmp(argv[1], "--stream-languages");
+    if ((!language_mode && argc != 2) || !argv[1] || !argv[1][0]) return usage();
+    if (!language_mode && !strcmp(argv[1], "--version")) {
         puts("MUKSMATT_BD_NAV_1");
         return 0;
     }
-    BLURAY *disc = bd_open(argv[1], NULL);
+    unsigned requested_playlist = 0;
+    if (language_mode) {
+        if (!argv[2] || !*argv[2] || strlen(argv[2]) > 5) return usage();
+        for (const char *p = argv[2]; *p; ++p) if (*p < '0' || *p > '9') return usage();
+        requested_playlist = (unsigned)strtoul(argv[2], NULL, 10);
+        if (requested_playlist > 99999 || !argv[3] || !*argv[3]) return usage();
+    }
+    BLURAY *disc = bd_open(language_mode ? argv[3] : argv[1], NULL);
     if (!disc) {
         fputs("libbluray could not open the Blu-ray source. Check image/device access and libudfread support.\n", stderr);
         return 1;
@@ -41,6 +78,20 @@ int main(int argc, char **argv) {
         fputs("The source is protected but libaacs/libbdplus could not handle its protection. Configure authorized decryption data.\n", stderr);
         bd_close(disc);
         return 1;
+    }
+    if (language_mode) {
+        BLURAY_TITLE_INFO *title = bd_get_playlist_info(disc, requested_playlist, 0);
+        if (!title || title->playlist != requested_playlist || !title->clip_count ||
+            title->clip_count > 10000) {
+            fputs("Cannot read requested Blu-ray playlist stream metadata.\n", stderr);
+            if (title) bd_free_title_info(title);
+            bd_close(disc);
+            return 1;
+        }
+        const int bad = print_stream_languages(title);
+        bd_free_title_info(title);
+        bd_close(disc);
+        return bad;
     }
     uint32_t count = bd_get_titles(disc, 0, 0);
     if (!count || count > 100000) {

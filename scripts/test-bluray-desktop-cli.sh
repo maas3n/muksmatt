@@ -61,6 +61,34 @@ read -r VIDEO_INDEX AUDIO_INDEX < "$WORK/selected-indices.txt"
 "$CLI" bluray remux --playlist "$PLAYLIST" --streams "$AUDIO_INDEX" \
     --no-chapters --output "$WORK/audio-only.mkv" "$ISO"
 
+# Exercise the new CLI tab Blu-ray track inspection, direct DEMUX and
+# combined M2TS mux through the actual user-facing CLI entry point.
+"$CLI" bluray tracks --playlist "$PLAYLIST" "$DISC" > "$WORK/tracks.txt"
+grep -Eq '0x1[0-9a-f]{3}' "$WORK/tracks.txt"
+mkdir -p "$WORK/extracted"
+DEMUX_DIR="$("$CLI" bluray demux --playlist "$PLAYLIST" \
+    --streams "$VIDEO_INDEX,$AUDIO_INDEX" --no-chapters \
+    --output "$WORK/extracted" "$DISC")"
+test -d "$DEMUX_DIR"
+test -s "$DEMUX_DIR/track-$(printf '%02d' "$VIDEO_INDEX").mpeg2"
+test -s "$DEMUX_DIR/track-$(printf '%02d' "$AUDIO_INDEX").flac"
+test ! -e "$DEMUX_DIR/Chapters.txt"
+test -z "$(find "$DEMUX_DIR" -maxdepth 1 -type f -name '*.mkv' -print -quit)"
+"$CLI" bluray remux --playlist "$PLAYLIST" --streams "$VIDEO_INDEX" \
+    --output "$WORK/video-only.m2ts" "$DISC"
+python3 - "$WORK/video-only.m2ts" <<'PY'
+import json, pathlib, subprocess, sys
+p = pathlib.Path(sys.argv[1])
+data = p.read_bytes()
+assert data and len(data)%192 == 0
+assert all(data[i+4] == 0x47 for i in range(0,len(data),192))
+out = json.loads(subprocess.check_output([
+    "ffprobe","-v","error","-show_streams","-show_chapters","-of","json",str(p)
+], text=True))
+assert [s.get("codec_type") for s in out["streams"]] == ["video"],out
+assert not out.get("chapters"),out
+PY
+
 # Validate Matroska tracks, mandatory LPCM->FLAC and chapter policy.
 python3 - "$WORK" <<'PY'
 import json, pathlib, subprocess, sys

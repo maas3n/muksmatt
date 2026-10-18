@@ -43,14 +43,23 @@ func appendMergerDemuxInput(args []string, path string, title int, copyTS bool) 
 }
 
 func demuxMerger(ctx context.Context, tools toolPaths, selected []mergerStream, outputDir, dvdVideo string) (final string, err error) {
+	if len(selected) == 0 {
+		return "", errors.New("select at least one stream to demux")
+	}
+	if selectedBluRayMergerStreams(selected) {
+		if dvdVideo != blurayVideoElementary && dvdVideo != blurayVideoM2TS && dvdVideo != blurayVideoBoth {
+			return "", errors.New("choose elementary video, M2TS or both for Blu-ray DEMUX")
+		}
+		if err = validateOutputDir(outputDir); err != nil {
+			return "", err
+		}
+		return demuxMergerBluRay(ctx, selected, outputDir, dvdVideo)
+	}
 	if dvdVideo != "mpeg2" && dvdVideo != "vob" {
 		return "", errors.New("choose MPEG-2 or VOB video export")
 	}
 	if err = validateOutputDir(outputDir); err != nil {
 		return "", err
-	}
-	if len(selected) == 0 {
-		return "", errors.New("select at least one stream to demux")
 	}
 	type group struct {
 		path     string

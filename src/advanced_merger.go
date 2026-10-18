@@ -15,8 +15,11 @@ import (
 )
 
 type mergerStream struct {
-	Path  string
-	Track trackOption
+	Path           string
+	Track          trackOption
+	BluRay         bool
+	BluRayPlaylist int
+	MetadataEdited bool // explicit language/title changes requested in ADVANCED
 }
 
 func probeMergerFile(ctx context.Context, probe, path, kind string) ([]mergerStream, error) {
@@ -78,7 +81,7 @@ func probeMergerFile(ctx context.Context, probe, path, kind string) ([]mergerStr
 		if t.Kind == "attachment" && t.Title == "" {
 			t.Title = raw.Tags["filename"]
 		}
-		streams = append(streams, mergerStream{inputPath, t})
+		streams = append(streams, mergerStream{Path: inputPath, Track: t})
 	}
 	if kind == "all" {
 		var chapters ffprobeChapterResult
@@ -86,7 +89,7 @@ func probeMergerFile(ctx context.Context, probe, path, kind string) ([]mergerStr
 			return nil, err
 		}
 		if len(chapters.Chapters) > 0 {
-			streams = append(streams, mergerStream{inputPath, trackOption{DVDTitle: title, Index: -1, Kind: "chapters", Title: fmt.Sprintf("%d chapters", len(chapters.Chapters))}})
+			streams = append(streams, mergerStream{Path: inputPath, Track: trackOption{DVDTitle: title, Index: -1, Kind: "chapters", Title: fmt.Sprintf("%d chapters", len(chapters.Chapters))}})
 		}
 	}
 	if len(streams) == 0 {
@@ -96,6 +99,8 @@ func probeMergerFile(ctx context.Context, probe, path, kind string) ([]mergerStr
 }
 
 func validateMergerChapters(ctx context.Context, probe, path string) error {
+	_, matched, err := parseOGMChapters(path)
+	if matched || err != nil { return err }
 	return validateMergerChapterSource(ctx, probe, path, false)
 }
 
@@ -156,7 +161,29 @@ func resolveMergerSelection(streams []mergerStream, override string) ([]mergerSt
 	return media, chapter, nil
 }
 
+// Legacy callers and tests use the MKV semantics unchanged.
 func mergerArgs(streams []mergerStream, chapters, output string) ([]string, error) {
+	return mergerArgsForFormat(streams, chapters, output, "matroska")
+}
+
+func mergerArgsForFormat(streams []mergerStream, chapters, output, format string) ([]string, error) {
+	if format != "matroska" && format != "mpegts" {
+		return nil, fmt.Errorf("unsupported ADVANCED MUX format %q", format)
+	}
+	if format == "mpegts" {
+		// Keep chapter rows out of the stream planner too, including direct
+		// mergerArgsForFormat callers (not only the GUI muxMerger path).
+		filtered := make([]mergerStream, 0, len(streams))
+		for _, stream := range streams {
+			if stream.Track.Kind != "chapters" { filtered = append(filtered, stream) }
+		}
+		streams = filtered
+		chapters = ""
+	}
+	blurayPlaylists, err := mergerBluraySelections(streams)
+	if err != nil {
+		return nil, err
+	}
 	titles := map[string]int{}
 	for _, s := range streams {
 		if n, ok := titles[s.Path]; ok && n != s.Track.DVDTitle {
@@ -164,13 +191,26 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 		}
 		titles[s.Path] = s.Track.DVDTitle
 	}
-	input := func(args []string, path string) []string {
-		if titles[path] > 0 {
-			return appendDesktopDVDInput(args, titles[path], path)
+	input := func(args []string, path string) ([]string, error) {
+		if playlist, ok := blurayPlaylists[path]; ok {
+			source, err := resolveBluraySource(path)
+			if err != nil {
+				return nil, err
+			}
+			blurayArgs, err := blurayInputArgs(source, blurayPlaylist{Number: playlist})
+			if err != nil {
+				return nil, err
+			}
+			return append(args, blurayArgs...), nil
 		}
-		return appendDesktopMediaInput(args, path)
+		if titles[path] > 0 {
+			return appendDesktopDVDInput(args, titles[path], path), nil
+		}
+		if strings.HasPrefix(filepath.Base(path), ".muksmatt-bluray-chapters-") && strings.HasSuffix(path, ".ffmeta") {
+			return append(args, "-f", "ffmetadata", "-i", path), nil
+		}
+		return appendDesktopMediaInput(args, path), nil
 	}
-	var err error
 	streams, chapters, err = resolveMergerSelection(streams, chapters)
 	if err != nil {
 		return nil, err
@@ -186,7 +226,10 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 		}
 		if _, ok := inputs[s.Path]; !ok {
 			inputs[s.Path] = len(inputs)
-			args = input(args, s.Path)
+			args, err = input(args, s.Path)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	chapterIndex := -1
@@ -195,7 +238,10 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 			chapterIndex = index
 		} else {
 			chapterIndex = len(inputs)
-			args = input(args, chapters)
+			args, err = input(args, chapters)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	seen := map[string]bool{}
@@ -212,22 +258,66 @@ func mergerArgs(streams []mergerStream, chapters, output string) ([]string, erro
 	} else {
 		args = append(args, fmt.Sprint(chapterIndex))
 	}
-	return append(args, "-c", "copy", "-f", "matroska", output), nil
+	args = append(args, "-c", "copy")
+	if format == "matroska" {
+		for _, index := range mergerBlurayLPCMAudioIndexes(streams) {
+			args = append(args, fmt.Sprintf("-c:a:%d", index), "flac")
+		}
+	}
+	args = append(args, mergerBlurayMetadataArgs(streams)...)
+	if format == "mpegts" {
+		args = append(args, "-mpegts_m2ts_mode", "1")
+	}
+	return append(args, "-f", format, output), nil
 }
 
 func muxMerger(ctx context.Context, tools toolPaths, streams []mergerStream, chapters, output string) error {
+	format := "matroska"
+	switch strings.ToLower(filepath.Ext(output)) {
+	case ".mkv":
+	case ".m2ts":
+		format = "mpegts"
+	default:
+		return errors.New("ADVANCED MUX output must end in .mkv or .m2ts")
+	}
+	if format == "mpegts" {
+		if err := validateAdvancedM2TSStreams(streams); err != nil { return err }
+		// Chapter rows and chapter overrides are not M2TS tracks.
+		// Strip them before resolveMergerSelection so that it never attempts
+		// to read a Blu-ray playlist's chapter metadata for this format.
+		media := make([]mergerStream, 0, len(streams))
+		for _, stream := range streams {
+			if stream.Track.Kind != "chapters" { media = append(media, stream) }
+		}
+		streams = media
+		chapters = ""
+	}
 	movieChapters := chapters == ""
 	originalStreams := streams
+	containsBluRay := selectedBluRayMergerStreams(streams)
+	if containsBluRay {
+		var err error
+		tools, err = resolveBlurayTools(ctx)
+		if err != nil {
+			return err
+		}
+	}
 	dvdTitles := map[string]int{}
 	for _, s := range streams {
 		dvdTitles[s.Path] = s.Track.DVDTitle
 	}
 	for _, s := range streams {
 		if s.Track.DVDTitle > 0 {
-			var err error
-			tools, err = desktopCLITools(ctx, false)
-			if err != nil {
-				return err
+			if containsBluRay {
+				if err := checkDVDDemuxer(ctx, tools.ffmpeg); err != nil {
+					return fmt.Errorf("mixed DVD/Blu-ray merger requires FFmpeg with both protocols: %w", err)
+				}
+			} else {
+				var err error
+				tools, err = desktopCLITools(ctx, false)
+				if err != nil {
+					return err
+				}
 			}
 			break
 		}
@@ -238,6 +328,51 @@ func muxMerger(ctx context.Context, tools toolPaths, streams []mergerStream, cha
 		return selectionErr
 	}
 	if chapters != "" {
+		ogm, matched, parseErr := parseOGMChapters(chapters)
+		if parseErr != nil { return parseErr }
+		if matched {
+			// Last chapter should reach the actual media duration whenever
+			// it is available, not end at its starting timestamp.
+			estimatedEnd := mergerSelectedDuration(ctx, tools.ffprobe, originalStreams)
+			tmp, err := os.CreateTemp(filepath.Dir(output), ".muksmatt-bluray-chapters-*.ffmeta")
+			if err != nil { return err }
+			defer os.Remove(tmp.Name())
+			if _, err := tmp.Write(ogmChaptersFFMetadata(ogm, estimatedEnd)); err != nil {
+				tmp.Close()
+				return err
+			}
+			if err := tmp.Close(); err != nil { return err }
+			chapters = tmp.Name()
+			movieChapters = false
+		}
+		// Blu-ray MPLS chapter marks must be emitted as FFmetadata. The
+		// bluray: transport alone does not expose those chapters reliably.
+		for _, item := range originalStreams {
+			if item.BluRay && item.Track.Kind == "chapters" && item.Path == chapters {
+				_, playlist, err := guiBlurayPlaylist(ctx, item.Path, item.BluRayPlaylist)
+				if err != nil {
+					return err
+				}
+				if len(playlist.Chapters) == 0 {
+					return fmt.Errorf("selected Blu-ray playlist %05d has no chapters", playlist.Number)
+				}
+				chapterFile, err := os.CreateTemp(filepath.Dir(output), ".muksmatt-bluray-chapters-*.ffmeta")
+				if err != nil {
+					return err
+				}
+				defer os.Remove(chapterFile.Name())
+				if _, err := chapterFile.Write(blurayFFmetadata(playlist)); err != nil {
+					chapterFile.Close()
+					return err
+				}
+				if err := chapterFile.Close(); err != nil {
+					return err
+				}
+				chapters = chapterFile.Name()
+				movieChapters = false
+				break
+			}
+		}
 		if err := validateSelectedMergerChapters(ctx, tools.ffprobe, chapters, movieChapters, dvdTitles[chapters]); err != nil {
 			return err
 		}
@@ -251,7 +386,7 @@ func muxMerger(ctx context.Context, tools toolPaths, streams []mergerStream, cha
 	if err != nil {
 		return err
 	}
-	args, err := mergerArgs(originalStreams, chapters, partial)
+	args, err := mergerArgsForFormat(originalStreams, chapters, partial, format)
 	if err != nil {
 		os.Remove(partial)
 		return err

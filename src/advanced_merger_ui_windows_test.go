@@ -47,17 +47,18 @@ func TestWindowsAdvancedMergerAndBatchTabs(t *testing.T) {
 			t.Fatalf("source button %d = %q; want %q", i, got, want)
 		}
 	}
-	if got, want := getText(mergerWindow.controls[8]), "ADD CHAPTER .txt FILE(FFMETADATA1 Format)"; got != want {
+	if got, want := getText(mergerWindow.controls[9]), "ADD CHAPTER (OGM/FFMETA/MKV)"; got != want {
 		t.Fatalf("chapter button = %q; want %q", got, want)
 	}
-	foundMux := false
+	foundMux, foundMetadata := false, false
 	for _, control := range mergerWindow.controls {
-		if getText(control) == "MUX" {
-			foundMux = true
+		switch getText(control) {
+		case "MUX": foundMux = true
+		case "Edit track metadata": foundMetadata = true
 		}
 	}
-	if !foundMux {
-		t.Fatal("Advanced Merger is missing renamed MUX button")
+	if !foundMux || !foundMetadata {
+		t.Fatalf("Advanced Merger is missing buttons: MUX=%v Metadata=%v", foundMux, foundMetadata)
 	}
 	visible := syscall.NewLazyDLL("user32.dll").NewProc("IsWindowVisible")
 

@@ -133,3 +133,63 @@ func TestBlurayProbeRejectsInvalidInventories(t *testing.T) {
 		}
 	}
 }
+
+func TestBluRayDemuxVideoOutputFormats(t *testing.T) {
+	h264 := blurayStream{Index: 0, Kind: "video", Codec: "h264"}
+	for _, tc := range []struct {
+		mode string
+		extensions string
+		muxers string
+	}{
+		{blurayVideoElementary, "h264", "h264"},
+		{blurayVideoM2TS, "m2ts", "mpegts"},
+		{blurayVideoBoth, "h264,m2ts", "h264,mpegts"},
+	} {
+		formats, err := blurayDemuxFormats(h264, tc.mode)
+		if err != nil { t.Fatalf("mode %s: %v", tc.mode, err) }
+		var exts, muxers []string
+		for _, format := range formats {
+			exts = append(exts, format.Extension)
+			muxers = append(muxers, format.Muxer)
+		}
+		if strings.Join(exts, ",") != tc.extensions || strings.Join(muxers, ",") != tc.muxers {
+			t.Fatalf("mode %s: formats %v; want extensions %q muxers %q", tc.mode, formats, tc.extensions, tc.muxers)
+		}
+	}
+	// Video-only export mode must never transform unrelated tracks.
+	for _, stream := range []blurayStream{
+		{Index: 1, Kind: "audio", Codec: "dts"},
+		{Index: 2, Kind: "subtitle", Codec: "hdmv_pgs_subtitle"},
+		{Index: 3, Kind: "audio", Codec: "pcm_bluray"},
+	} {
+		plain, err := blurayDemuxFormats(stream, blurayVideoElementary)
+		if err != nil { t.Fatal(err) }
+		for _, mode := range []string{blurayVideoM2TS, blurayVideoBoth} {
+			got, err := blurayDemuxFormats(stream, mode)
+			if err != nil || !reflect.DeepEqual(got, plain) {
+				t.Fatalf("codec %s mode %s changed non-video format: %v %v", stream.Codec, mode, got, err)
+			}
+		}
+	}
+	if _, err := blurayDemuxFormats(h264, "vob"); err == nil {
+		t.Fatal("DVD-only VOB export accepted for Blu-ray")
+	}
+}
+
+func TestBluRayM2TSOutputUsesRealTransportMuxer(t *testing.T) {
+	video := blurayStream{Index: 0, Kind: "video", Codec: "h264"}
+	ts := demuxFormat{Extension: "m2ts", Muxer: "mpegts"}
+	args := blurayDemuxOutputArgs(nil, video, ts, "track-00.m2ts")
+	got := strings.Join(args, " ")
+	for _, want := range []string{
+		"-map 0:0", "-c copy", "-mpegts_m2ts_mode 1", "-f mpegts track-00.m2ts",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("M2TS output missing %q in %s", want, got)
+		}
+	}
+	raw := blurayDemuxOutputArgs(nil, video, demuxFormat{Extension: "h264", Muxer: "h264"}, "track-00.h264")
+	if strings.Contains(strings.Join(raw, " "), "mpegts") || strings.Contains(strings.Join(raw, " "), "m2ts") {
+		t.Fatalf("raw H264 output leaked transport options: %v", raw)
+	}
+}

@@ -97,9 +97,14 @@ func blurayInputArgs(source bluraySource, playlist blurayPlaylist) ([]string, er
 }
 
 type blurayStream struct {
-	Index int
-	Kind  string
-	Codec string
+	Index    int
+	Kind     string
+	Codec    string
+	Profile  string
+	PID      uint16 // MPEG-TS packet ID; zero if FFprobe did not supply an ID
+	Language string // ISO 639-2, never inferred from stream order
+	Title    string
+	Channels int
 }
 
 func parseBlurayProbe(data []byte) ([]blurayStream, error) {
@@ -119,7 +124,17 @@ func parseBlurayProbe(data []byte) ([]blurayStream, error) {
 			return nil, errors.New("Blu-ray probe contains invalid or duplicate stream indexes/codecs")
 		}
 		seen[stream.Index] = true
-		selected = append(selected, blurayStream{Index: stream.Index, Kind: stream.CodecType, Codec: stream.CodecName})
+		var pid uint16
+		if stream.ID != "" {
+			if value, err := strconv.ParseUint(stream.ID, 0, 13); err == nil && value > 0 && value < 8192 {
+				pid = uint16(value)
+			}
+		}
+		selected = append(selected, blurayStream{
+			Index: stream.Index, Kind: stream.CodecType, Codec: stream.CodecName,
+			Profile: stream.Profile, PID: pid, Language: strings.ToLower(strings.TrimSpace(stream.Tags["language"])),
+			Title: strings.TrimSpace(stream.Tags["title"]), Channels: stream.Channels,
+		})
 	}
 	if len(selected) == 0 {
 		return nil, errors.New("no readable video/audio/subtitle streams; media may be encrypted or libaacs/libbdplus is not configured")
@@ -141,7 +156,17 @@ func probeBlurayPlaylist(ctx context.Context, tools toolPaths, source bluraySour
 	if err != nil {
 		return nil, fmt.Errorf("libbluray could not read playlist %05d (verify disc access and configured AACS/BD+ support): %w", playlist.Number, err)
 	}
-	return parseBlurayProbe(data)
+	streams, err := parseBlurayProbe(data)
+	if err != nil {
+		return nil, err
+	}
+	// libbluray can expose playlist stream languages even when FFprobe's
+	// bluray: protocol omits them. Do not fail remux if the older native
+	// companion is absent, or assign any language without an exact PID match.
+	if langs, langErr := nativeBlurayLanguages(ctx, source, playlist.Number); langErr == nil {
+		addBlurayLanguages(streams, langs)
+	}
+	return streams, nil
 }
 
 func selectedBlurayStreams(all []blurayStream, selected []int) ([]blurayStream, error) {
@@ -224,6 +249,7 @@ func blurayRemuxArgs(source bluraySource, playlist blurayPlaylist, streams []blu
 			audioIndex++
 		}
 	}
+	args = append(args, blurayMappedStreamMetadataArgs(streams)...)
 	args = append(args, "-f", "matroska", partial)
 	return args, nil
 }
@@ -237,6 +263,12 @@ func verifyBlurayRemux(ctx context.Context, probe string, filename string, selec
 	if err != nil {
 		return err
 	}
+	return verifyBlurayRemuxStreams(got, selected)
+}
+
+// Verify the metadata that the remux command explicitly writes, in addition to
+// the streams themselves. Unknown source languages are deliberately not guessed.
+func verifyBlurayRemuxStreams(got, selected []blurayStream) error {
 	if len(got) != len(selected) {
 		return fmt.Errorf("Blu-ray remux stream count mismatch: got %d, expected %d", len(got), len(selected))
 	}
@@ -248,6 +280,16 @@ func verifyBlurayRemux(ctx context.Context, probe string, filename string, selec
 		if got[i].Kind != stream.Kind || !strings.EqualFold(got[i].Codec, want) {
 			return fmt.Errorf("Blu-ray stream %d mismatch: got %s/%s, expected %s/%s",
 				i, got[i].Kind, got[i].Codec, stream.Kind, want)
+		}
+		if validBlurayLanguage(stream.Language) && !strings.EqualFold(got[i].Language, stream.Language) {
+			return fmt.Errorf("Blu-ray stream %d language mismatch: got %q, expected %q",
+				i, got[i].Language, stream.Language)
+		}
+		if stream.Kind == "audio" || stream.Kind == "subtitle" {
+			if title := bluRayStreamDisplayTitle(stream); title != "" && got[i].Title != title {
+				return fmt.Errorf("Blu-ray stream %d title mismatch: got %q, expected %q",
+					i, got[i].Title, title)
+			}
 		}
 	}
 	return nil

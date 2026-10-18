@@ -62,8 +62,8 @@ func createMergerWindowsControls(hwnd, hInstance uintptr) {
 	// Keep the explanatory source labels readable without widening the main window.
 	// MEDIA and DVD DRIVE occupy the first row; the category-filtered additions use
 	// the second row so the parenthetical behavior stays visible at normal DPI.
-	add("BUTTON", "MEDIA(All streams included)", BS_PUSHBUTTON, 28, 52, 370, 34, mergerFirstID)
-	add("BUTTON", "DVD DRIVE", BS_PUSHBUTTON, 408, 52, 370, 34, mergerFirstID+9)
+	add("BUTTON", "MEDIA(All streams included)", BS_PUSHBUTTON, 28, 52, 240, 34, mergerFirstID)
+	add("BUTTON", "DVD DRIVE", BS_PUSHBUTTON, 276, 52, 240, 34, mergerFirstID+9)
 	add("BUTTON", "ADD AUDIO(Only audio streams will be included)", BS_PUSHBUTTON, 28, 94, 370, 34, mergerFirstID+1)
 	add("BUTTON", "ADD SUBTITLE(Only subtitle streams will be Included)", BS_PUSHBUTTON, 408, 94, 370, 34, mergerFirstID+2)
 	add("STATIC", "Select Streams", 0, 28, 136, 750, 22, 0)
@@ -72,8 +72,9 @@ func createMergerWindowsControls(hwnd, hInstance uintptr) {
 	col := LVCOLUMNW{Mask: LVCF_WIDTH | LVCF_TEXT, Cx: scale96(725, dpi), PszText: utf16Ptr("File / stream")}
 	procSendMessageW.Call(mergerWindow.list, LVM_INSERTCOLUMNW, 0, uintptr(unsafe.Pointer(&col)))
 	add("BUTTON", "Clear streams", BS_PUSHBUTTON, 28, 365, 130, 28, mergerFirstID+3)
+	add("BUTTON", "Edit track metadata", BS_PUSHBUTTON, 171, 365, 185, 28, mergerFirstID+11)
 	mergerWindow.chapter = add("EDIT", "", WS_BORDER|ES_AUTOHSCROLL, 28, 405, 430, 28, 0)
-	add("BUTTON", "ADD CHAPTER .txt FILE(FFMETADATA1 Format)", BS_PUSHBUTTON, 468, 403, 310, 32, mergerFirstID+4)
+	add("BUTTON", "ADD CHAPTER (OGM/FFMETA/MKV)", BS_PUSHBUTTON, 468, 403, 310, 32, mergerFirstID+4)
 	mergerWindow.output = add("EDIT", loadSettings().OutputDir, WS_BORDER|ES_AUTOHSCROLL, 28, 445, 500, 28, 0)
 	if getText(mergerWindow.output) == "" {
 		setText(mergerWindow.output, defaultOutputDir())
@@ -81,7 +82,7 @@ func createMergerWindowsControls(hwnd, hInstance uintptr) {
 	add("BUTTON", "CHOOSE OUTPUT FOLDER", BS_PUSHBUTTON, 538, 443, 240, 32, mergerFirstID+5)
 	add("STATIC", "Output filename", 0, 28, 487, 120, 24, 0)
 	mergerWindow.name = add("EDIT", "merged.mkv", WS_BORDER|ES_AUTOHSCROLL, 155, 484, 623, 28, 0)
-	mergerWindow.status = add("STATIC", "Choose files and select streams. Chapters are optional (MKV or FFMETADATA1).", 0, 28, 522, 750, 24, 0)
+	mergerWindow.status = add("STATIC", "Choose files and streams; chapter files can be OGM text, FFMETADATA1 or MKV.", 0, 28, 522, 750, 24, 0)
 	// Use the same native Windows progress-control family as DVD Remux. Advanced
 	// Merger cannot know an exact percentage for arbitrary stream-copy inputs, so
 	// show the native marquee while an operation is active instead of a fake value.
@@ -90,6 +91,7 @@ func createMergerWindowsControls(hwnd, hInstance uintptr) {
 	add("BUTTON", "MUX", BS_PUSHBUTTON, 488, 574, 180, 34, mergerFirstID+6)
 	mergerWindow.cancelBtn = add("BUTTON", "Cancel", BS_PUSHBUTTON, 680, 574, 98, 34, mergerFirstID+8)
 	procEnableWindow.Call(mergerWindow.cancelBtn, 0)
+	add("BUTTON", "BLU-RAY BDMV / ISO", BS_PUSHBUTTON, 524, 52, 254, 34, mergerFirstID+10)
 	createBatchWindowsControls(hwnd, hInstance)
 	createCLIWindowsControls(hwnd, hInstance)
 }
@@ -198,6 +200,19 @@ func browseWindowsMergerMediaSources(owner uintptr) []string {
 	return nil
 }
 
+func browseWindowsMergerBluRaySources(owner uintptr) []string {
+	choice := messageBox(owner, "Add Blu-ray to ADVANCED", "Choose a Blu-ray source.\n\nYes: Blu-ray ISO file\nNo: BDMV folder / disc root\nCancel: return", 0x00000003|MB_ICONQUESTION)
+	switch choice {
+	case 6:
+		return browseMergerFiles(owner, false)
+	case 7:
+		if path := browseFolder(owner, "Choose Blu-ray disc root or BDMV folder"); path != "" {
+			return []string{path}
+		}
+	}
+	return nil
+}
+
 func runWindowsMerger(label string, work func(context.Context) (func(), error)) {
 	if !app.busy.CompareAndSwap(false, true) {
 		return
@@ -244,7 +259,7 @@ func handleWindowsMergerCommand(id int) bool {
 	if handleWindowsCLICommand(id) || handleWindowsBatchCommand(id) {
 		return true
 	}
-	if id < mergerFirstID || id > mergerFirstID+9 {
+	if id < mergerFirstID || id > mergerFirstID+10 {
 		return false
 	}
 	if id == mergerFirstID+8 {
@@ -283,7 +298,7 @@ func handleWindowsMergerCommand(id int) bool {
 				for _, s := range added {
 					duplicate := false
 					for _, old := range mergerWindow.streams {
-						if strings.EqualFold(old.Path, s.Path) && old.Track.Index == s.Track.Index {
+						if strings.EqualFold(old.Path, s.Path) && old.Track.Index == s.Track.Index && old.BluRay == s.BluRay && old.BluRayPlaylist == s.BluRayPlaylist {
 							duplicate = true
 						}
 					}
@@ -296,6 +311,56 @@ func handleWindowsMergerCommand(id int) bool {
 					procSendMessageW.Call(mergerWindow.list, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
 				}
 				setText(mergerWindow.status, fmt.Sprintf("%d streams available", len(mergerWindow.streams)))
+			}, nil
+		})
+	case 10:
+		paths := browseWindowsMergerBluRaySources(app.hwnd)
+		if len(paths) == 0 {
+			return true
+		}
+		path := paths[0]
+		// ADVANCED must not choose the longest MPLS without user consent:
+		// Blu-rays can contain fake-long, looping playlists.
+		runWindowsMerger("Reading Blu-ray playlists…", func(ctx context.Context) (func(), error) {
+			source, err := resolveBluraySource(path)
+			if err != nil {
+				return nil, err
+			}
+			playlists, err := discoverBlurayForSource(ctx, source)
+			if err != nil {
+				return nil, err
+			}
+			if len(playlists) == 0 {
+				return nil, fmt.Errorf("Blu-ray contains no readable playlists")
+			}
+			return func() {
+				showWindowsAdvancedBluRayPlaylistChooser(playlists, func(playlistNumber int) {
+					runWindowsMerger("Reading selected Blu-ray playlist and streams…", func(ctx context.Context) (func(), error) {
+						added, err := probeMergerBluRay(ctx, path, "all", playlistNumber)
+						if err != nil {
+							return nil, err
+						}
+						return func() {
+							for _, s := range added {
+								duplicate := false
+								for _, old := range mergerWindow.streams {
+									if strings.EqualFold(old.Path, s.Path) && old.Track.Index == s.Track.Index && old.BluRay && old.BluRayPlaylist == s.BluRayPlaylist {
+										duplicate = true
+									}
+								}
+								if duplicate {
+									continue
+								}
+								index := len(mergerWindow.streams)
+								mergerWindow.streams = append(mergerWindow.streams, s)
+								label := fmt.Sprintf("%s — Blu-ray playlist %05d — %s", dvdSourceDisplayName(s.Path), s.BluRayPlaylist, s.Track.Label())
+								item := LVITEMW{Mask: LVIF_TEXT | LVIF_STATE, IItem: int32(index), PszText: utf16Ptr(label), State: 2 << 12, StateMask: LVIS_STATEIMAGEMASK}
+								procSendMessageW.Call(mergerWindow.list, LVM_INSERTITEMW, 0, uintptr(unsafe.Pointer(&item)))
+							}
+							setText(mergerWindow.status, fmt.Sprintf("%d streams available", len(mergerWindow.streams)))
+						}, nil
+					})
+				})
 			}, nil
 		})
 	case 9:
@@ -363,10 +428,18 @@ func handleWindowsMergerCommand(id int) bool {
 			}
 		}
 		filename := strings.TrimSpace(getText(mergerWindow.name))
-		if filepath.Base(filename) != filename || !strings.HasSuffix(strings.ToLower(filename), ".mkv") {
-			messageBox(app.hwnd, "Output filename", "Enter a filename ending in .mkv without folders.", MB_OK|MB_ICONWARNING)
+		ext := strings.ToLower(filepath.Ext(filename))
+		if filepath.Base(filename) != filename || (ext != ".mkv" && ext != ".m2ts") {
+			messageBox(app.hwnd, "Output filename", "Enter a filename ending in .mkv or .m2ts without folders.", MB_OK|MB_ICONWARNING)
 			return true
 		}
+		choice := messageBox(app.hwnd, "ADVANCED MUX output format",
+			"Choose output container:\n\nYes: MKV (includes chapters)\nNo: M2TS (video, audio and Blu-ray PGS; NO chapters)\nCancel: return", 0x00000003|MB_ICONQUESTION)
+		if choice != 6 && choice != 7 { return true }
+		targetExt := ".mkv"
+		if choice == 7 { targetExt = ".m2ts" }
+		filename = strings.TrimSuffix(filename, filepath.Ext(filename)) + targetExt
+		setText(mergerWindow.name, filename)
 		dir, chap := getText(mergerWindow.output), getText(mergerWindow.chapter)
 		runWindowsMerger("Muxing selected streams…", func(ctx context.Context) (func(), error) {
 			if err := validateOutputDir(dir); err != nil {
@@ -382,37 +455,79 @@ func handleWindowsMergerCommand(id int) bool {
 			}
 			return func() { setText(mergerWindow.status, "Completed: "+out) }, nil
 		})
+	case 11:
+		idx, _, _ := procSendMessageW.Call(mergerWindow.list, LVM_FIRST+12, ^uintptr(0), 2)
+		if idx >= uintptr(len(mergerWindow.streams)) {
+			messageBox(app.hwnd, "Edit track metadata", "Select an audio or subtitle row (not just its checkbox), then click Edit track metadata.", MB_OK|MB_ICONWARNING)
+			return true
+		}
+		i := int(idx)
+		row := mergerWindow.streams[i]
+		if row.Track.Kind != "audio" && row.Track.Kind != "subtitle" {
+			messageBox(app.hwnd, "Edit track metadata", "Select an audio or subtitle track.", MB_OK|MB_ICONWARNING)
+			return true
+		}
+		showWindowsAdvancedMetadataEditor(row.Track.Language, row.Track.Title, func(lang, title string) error {
+			if err := setAdvancedStreamMetadata(&mergerWindow.streams[i], lang, title); err != nil { return err }
+			label := dvdSourceDisplayName(mergerWindow.streams[i].Path)+" — "+mergerWindow.streams[i].Track.Label()
+			procSendMessageW.Call(mergerWindow.list, LVM_FIRST+116, uintptr(i), uintptr(unsafe.Pointer(&LVITEMW{PszText:utf16Ptr(label)})))
+			setText(mergerWindow.status, "Track metadata updated: "+label)
+			return nil
+		})
+		return true
 	case 7:
 		var selected []mergerStream
+		hasVideo := false
 		for i, s := range mergerWindow.streams {
 			state, _, _ := procSendMessageW.Call(mergerWindow.list, LVM_GETITEMSTATE, uintptr(i), LVIS_STATEIMAGEMASK)
 			if state>>12 == 2 {
 				selected = append(selected, s)
+				if s.Track.Kind == "video" {
+					hasVideo = true
+				}
 			}
 		}
-		choice := messageBox(app.hwnd, "MPEG-2 video export format", "Save MPEG-2 video as VOB?\n\nYes: .VOB video\nNo: .mpeg2 elementary video\nCancel: return", 0x00000003|MB_ICONQUESTION)
+		dir := getText(mergerWindow.output)
+		startDemux := func(videoMode string) {
+			runWindowsMerger("Demuxing selected streams…", func(ctx context.Context) (func(), error) {
+				if err := validateOutputDir(dir); err != nil {
+					return nil, err
+				}
+				tools, err := mergerTools(ctx)
+				if err != nil {
+					return nil, err
+				}
+				final, err := demuxMerger(ctx, tools, selected, dir, videoMode)
+				if err != nil {
+					return nil, err
+				}
+				return func() { setText(mergerWindow.status, "Demux complete: " + final) }, nil
+			})
+		}
+		if selectedBluRayMergerStreams(selected) {
+			if hasVideo {
+				showWindowsAdvancedBluRayVideoChooser(startDemux)
+			} else {
+				// With no selected video, the MPEG-2/VOB dialog is irrelevant.
+				startDemux(blurayVideoElementary)
+			}
+			return true
+		}
+		if !hasVideo {
+			startDemux("mpeg2")
+			return true
+		}
+		choice := messageBox(app.hwnd, "MPEG-2 video export format",
+			"Save MPEG-2 video as VOB?\n\nYes: .VOB video\nNo: .mpeg2 elementary video\nCancel: return",
+			0x00000003|MB_ICONQUESTION)
 		if choice != 6 && choice != 7 {
 			return true
 		}
-		video := "mpeg2"
 		if choice == 6 {
-			video = "vob"
+			startDemux("vob")
+		} else {
+			startDemux("mpeg2")
 		}
-		dir := getText(mergerWindow.output)
-		runWindowsMerger("Demuxing selected streams…", func(ctx context.Context) (func(), error) {
-			if err := validateOutputDir(dir); err != nil {
-				return nil, err
-			}
-			tools, err := mergerTools(ctx)
-			if err != nil {
-				return nil, err
-			}
-			final, err := demuxMerger(ctx, tools, selected, dir, video)
-			if err != nil {
-				return nil, err
-			}
-			return func() { setText(mergerWindow.status, "Demux complete: "+final) }, nil
-		})
 	}
 	return true
 }

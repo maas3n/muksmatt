@@ -21,7 +21,7 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 	var checks []*widget.Check
 	list := container.NewVBox()
 	chapter := widget.NewEntry()
-	chapter.SetPlaceHolder("Optional chapter override: MKV or FFMETADATA1")
+	chapter.SetPlaceHolder("Optional chapter override: OGM chapter text, FFmetadata or MKV")
 	output := widget.NewEntry()
 	output.SetText(g.outputEntry.Text)
 	name := widget.NewEntry()
@@ -76,7 +76,7 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 			})
 		}()
 	}
-	addPaths := func(kind string, paths []string) {
+	addPaths := func(kind string, paths []string, playlistNumber int) {
 		if len(paths) == 0 {
 			return
 		}
@@ -87,7 +87,12 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 			}
 			var added []mergerStream
 			for _, p := range paths {
-				ss, err := probeMergerFile(ctx, tools.ffprobe, p, kind)
+				var ss []mergerStream
+				if kind == "bluray" {
+					ss, err = probeMergerBluRay(ctx, p, "all", playlistNumber)
+				} else {
+					ss, err = probeMergerFile(ctx, tools.ffprobe, p, kind)
+				}
 				if err != nil {
 					return nil, err
 				}
@@ -97,7 +102,7 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 				for _, s := range added {
 					duplicate := false
 					for _, existing := range streams {
-						if existing.Path == s.Path && existing.Track.Index == s.Track.Index {
+						if existing.Path == s.Path && existing.Track.Index == s.Track.Index && existing.BluRay == s.BluRay && existing.BluRayPlaylist == s.BluRayPlaylist {
 							duplicate = true
 						}
 					}
@@ -112,6 +117,48 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 					list.Add(check)
 				}
 				status.SetText(fmt.Sprintf("%d streams available", len(streams)))
+			}, nil
+		})
+	}
+	// Discover playlists before reading streams so looping fake-long titles are
+	// never silently selected by ADVANCED. Require a user choice for ISO too.
+	chooseBluRayPlaylist := func(path string) {
+		run("Reading Blu-ray playlists…", func(ctx context.Context) (func(), error) {
+			source, err := resolveBluraySource(path)
+			if err != nil {
+				return nil, err
+			}
+			playlists, err := discoverBlurayForSource(ctx, source)
+			if err != nil {
+				return nil, err
+			}
+			if len(playlists) == 0 {
+				return nil, fmt.Errorf("Blu-ray contains no readable playlists")
+			}
+			return func() {
+				labels := make([]string, 0, len(playlists))
+				byLabel := make(map[string]int, len(playlists))
+				for _, p := range playlists {
+					label := fmt.Sprintf("Playlist %05d — %s — %d chapters", p.Number, p.Duration(), len(p.Chapters))
+					labels = append(labels, label)
+					byLabel[label] = p.Number
+				}
+				picker := widget.NewSelect(labels, nil)
+				picker.PlaceHolder = "Choose a playlist (do not rely on longest)"
+				info := widget.NewLabel("Choose the intended Blu-ray playlist. Some discs contain fake-long looping playlists.")
+				info.Wrapping = fyne.TextWrapWord
+				dialog.NewCustomConfirm("Choose ADVANCED Blu-ray playlist", "Use playlist", "Cancel",
+					container.NewVBox(info, picker), func(ok bool) {
+						if !ok {
+							return
+						}
+						number, selected := byLabel[picker.Selected]
+						if !selected {
+							dialog.ShowInformation("Playlist required", "Select a playlist before adding Blu-ray streams.", g.window)
+							return
+						}
+						addPaths("bluray", []string{path}, number)
+					}, g.window).Show()
 			}, nil
 		})
 	}
@@ -150,16 +197,29 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 		scroll.SetMinSize(fyne.NewSize(600, 320))
 		var chooser *dialog.ConfirmDialog
 		actions := container.NewHBox(widget.NewButton("Open folder", refresh))
-		if kind == "all" {
-			actions.Add(widget.NewButton("Add current folder as DVD / VIDEO_TS", func() {
-				if _, err := resolveDVDSource(dir.Text); err != nil {
+		if kind == "all" || kind == "bluray" {
+			folderLabel := "Add current folder as DVD / VIDEO_TS"
+			if kind == "bluray" {
+				folderLabel = "Add current folder as Blu-ray / BDMV"
+			}
+			actions.Add(widget.NewButton(folderLabel, func() {
+				if kind == "bluray" {
+					if _, err := resolveBluraySource(dir.Text); err != nil {
+						dialog.ShowError(err, g.window)
+						return
+					}
+				} else if _, err := resolveDVDSource(dir.Text); err != nil {
 					dialog.ShowError(err, g.window)
 					return
 				}
 				if chooser != nil {
 					chooser.Hide()
 				}
-				addPaths(kind, []string{dir.Text})
+				if kind == "bluray" {
+					chooseBluRayPlaylist(dir.Text)
+				} else {
+					addPaths(kind, []string{dir.Text}, -1)
+				}
 			}))
 		}
 		chooser = dialog.NewCustomConfirm("Choose "+kind+" files", "Add files", "Cancel", container.NewBorder(container.NewBorder(nil, nil, nil, actions, dir), nil, nil, nil, scroll), func(ok bool) {
@@ -173,12 +233,21 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 				}
 			}
 			sort.Strings(paths)
-			addPaths(kind, paths)
+			if kind == "bluray" {
+				if len(paths) != 1 {
+					dialog.ShowInformation("Choose one Blu-ray", "Add one Blu-ray source at a time so its playlist can be selected.", g.window)
+					return
+				}
+				chooseBluRayPlaylist(paths[0])
+				return
+			}
+			addPaths(kind, paths, -1)
 		}, g.window)
 		chooser.Resize(fyne.NewSize(680, 460))
 		chooser.Show()
 	}
 	movies := widget.NewButton("MEDIA(All streams included)", func() { add("all") })
+	bluRay := widget.NewButton("BLU-RAY BDMV / ISO", func() { add("bluray") })
 	drive := widget.NewButton("DVD DRIVE", func() {
 		drives, err := listPhysicalDVDDrives()
 		if err != nil {
@@ -241,7 +310,7 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 	})
 	audio := widget.NewButton("ADD AUDIO(Only audio streams will be included)", func() { add("audio") })
 	subs := widget.NewButton("ADD SUBTITLE(Only subtitle streams will be Included)", func() { add("subtitle") })
-	chapters := widget.NewButton("ADD CHAPTER .txt FILE(FFMETADATA1 Format)", func() {
+	chapters := widget.NewButton("ADD CHAPTER FILE (OGM / FFMETADATA1 / MKV)", func() {
 		dialog.ShowFileOpen(func(r fyne.URIReadCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, g.window)
@@ -274,26 +343,58 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 		}, g.window)
 	})
 	demux := widget.NewButton("DEMUX", func() {
-		format := widget.NewSelect([]string{"MPEG2 elementary video (.mpeg2)", "VOB video (.VOB)"}, nil)
-		format.SetSelected("MPEG2 elementary video (.mpeg2)")
-		dialog.NewCustomConfirm("Demux selected streams", "Demux", "Cancel", container.NewVBox(
-			widget.NewLabel("MPEG-2 video export format"),
-			format,
-		), func(ok bool) {
+		var chosen []mergerStream
+		hasVideo := false
+		for i, stream := range streams {
+			if !checks[i].Checked {
+				continue
+			}
+			chosen = append(chosen, stream)
+			if stream.Track.Kind == "video" {
+				hasVideo = true
+			}
+		}
+		bluRay := selectedBluRayMergerStreams(chosen)
+		videoMode := "mpeg2"
+		options := container.NewVBox()
+		var videoFormat *widget.Select
+		if bluRay {
+			videoMode = blurayVideoElementary
+			if hasVideo {
+				videoFormat = widget.NewSelect([]string{
+					"Elementary video (codec-native .h264 / .hevc / .mpeg2)",
+					"Video in M2TS transport stream (.m2ts)",
+					"Both elementary video and M2TS",
+				}, nil)
+				videoFormat.SetSelected("Elementary video (codec-native .h264 / .hevc / .mpeg2)")
+				options.Add(widget.NewLabel("Blu-ray video export format"))
+				options.Add(videoFormat)
+			} else {
+				options.Add(widget.NewLabel("No Blu-ray video selected — exporting selected audio, subtitles and chapters only."))
+			}
+		} else if hasVideo {
+			videoFormat = widget.NewSelect([]string{"MPEG2 elementary video (.mpeg2)", "VOB video (.VOB)"}, nil)
+			videoFormat.SetSelected("MPEG2 elementary video (.mpeg2)")
+			options.Add(widget.NewLabel("MPEG-2 video export format (DVD sources)"))
+			options.Add(videoFormat)
+		} else {
+			options.Add(widget.NewLabel("No video stream selected — exporting selected audio, subtitles and chapters only."))
+		}
+		dialog.NewCustomConfirm("Demux selected streams", "Demux", "Cancel", options, func(ok bool) {
 			if !ok {
 				return
 			}
-			var chosen []mergerStream
-			for i, s := range streams {
-				if checks[i].Checked {
-					chosen = append(chosen, s)
+			if bluRay && hasVideo {
+				switch videoFormat.Selected {
+				case "Video in M2TS transport stream (.m2ts)":
+					videoMode = blurayVideoM2TS
+				case "Both elementary video and M2TS":
+					videoMode = blurayVideoBoth
 				}
+			} else if !bluRay && hasVideo && videoFormat.Selected == "VOB video (.VOB)" {
+				videoMode = "vob"
 			}
 			dir := output.Text
-			video := "mpeg2"
-			if format.Selected == "VOB video (.VOB)" {
-				video = "vob"
-			}
 			run("Demuxing selected streams…", func(ctx context.Context) (func(), error) {
 				if err := validateOutputDir(dir); err != nil {
 					return nil, err
@@ -302,12 +403,57 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 				if err != nil {
 					return nil, err
 				}
-				final, err := demuxMerger(ctx, tools, chosen, dir, video)
+				final, err := demuxMerger(ctx, tools, chosen, dir, videoMode)
 				if err != nil {
 					return nil, err
 				}
 				return func() { status.SetText("Demux complete: " + final) }, nil
 			})
+		}, g.window).Show()
+	})
+	editMetadata := widget.NewButton("EDIT TRACK METADATA", func() {
+		var options []string
+		indices := map[string]int{}
+		first := ""
+		for i, row := range streams {
+			if row.Track.Kind != "audio" && row.Track.Kind != "subtitle" { continue }
+			label := fmt.Sprintf("%d: %s — %s", i, dvdSourceDisplayName(row.Path), row.Track.Label())
+			options = append(options, label)
+			indices[label] = i
+			if first == "" || (row.Track.Language == "" && row.Track.Title == "") {
+				first = label
+			}
+		}
+		if len(options) == 0 {
+			dialog.ShowInformation("Metadata", "Add audio or subtitle streams first.", g.window)
+			return
+		}
+		language := widget.NewEntry()
+		language.SetPlaceHolder("ISO 639-2 code: eng, nor, spa...")
+		title := widget.NewEntry()
+		title.SetPlaceHolder("Optional track title")
+		selected := widget.NewSelect(options, func(label string) {
+			if i, ok := indices[label]; ok {
+				language.SetText(streams[i].Track.Language)
+				title.SetText(streams[i].Track.Title)
+			}
+		})
+		selected.SetSelected(first)
+		box := container.NewVBox(
+			widget.NewLabel("Select a track and set its language and title for the output."),
+			selected, widget.NewLabel("Language (three-letter code)"), language,
+			widget.NewLabel("Track title"), title,
+		)
+		dialog.NewCustomConfirm("Edit stream metadata", "Apply", "Cancel", box, func(ok bool) {
+			if !ok { return }
+			i, exists := indices[selected.Selected]
+			if !exists { return }
+			if err := setAdvancedStreamMetadata(&streams[i], language.Text, title.Text); err != nil {
+				dialog.ShowError(err, g.window)
+				return
+			}
+			checks[i].SetText(dvdSourceDisplayName(streams[i].Path)+" — "+streams[i].Track.Label())
+			status.SetText("Metadata updated for "+dvdSourceDisplayName(streams[i].Path))
 		}, g.window).Show()
 	})
 	mux := widget.NewButton("MUX", func() {
@@ -318,25 +464,31 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 			}
 		}
 		filename := strings.TrimSpace(name.Text)
-		if filepath.Base(filename) != filename || !strings.HasSuffix(strings.ToLower(filename), ".mkv") {
-			dialog.ShowInformation("Output filename", "Enter a filename ending in .mkv, without folders.", g.window)
+		ext := strings.ToLower(filepath.Ext(filename))
+		if filepath.Base(filename) != filename || (ext != ".mkv" && ext != ".m2ts") {
+			dialog.ShowInformation("Output filename", "Enter a filename ending in .mkv or .m2ts, without folders.", g.window)
 			return
 		}
-		dir, chap := output.Text, chapter.Text
-		run("Muxing selected streams…", func(ctx context.Context) (func(), error) {
-			if err := validateOutputDir(dir); err != nil {
-				return nil, err
-			}
-			tools, err := mergerTools(ctx)
-			if err != nil {
-				return nil, err
-			}
-			path := filepath.Join(dir, filename)
-			if err = muxMerger(ctx, tools, chosen, chap, path); err != nil {
-				return nil, err
-			}
-			return func() { status.SetText("Completed: " + path) }, nil
-		})
+		format := widget.NewSelect([]string{"MKV — all selected streams and chapters", "M2TS — video/audio/PGS; no chapters"}, nil)
+		if ext == ".m2ts" { format.SetSelected("M2TS — video/audio/PGS; no chapters") } else { format.SetSelected("MKV — all selected streams and chapters") }
+		dialog.NewCustomConfirm("Choose ADVANCED MUX format", "Mux", "Cancel",
+			container.NewVBox(widget.NewLabel("M2TS excludes chapters and requires Blu-ray-compatible tracks. Unsupported streams produce an error."), format),
+			func(ok bool) {
+				if !ok { return }
+				extension := ".mkv"
+				if strings.HasPrefix(format.Selected, "M2TS") { extension = ".m2ts" }
+				target := strings.TrimSuffix(filename, filepath.Ext(filename)) + extension
+				name.SetText(target)
+				dir, chap := output.Text, chapter.Text
+				run("Muxing selected streams…", func(ctx context.Context) (func(), error) {
+					if err := validateOutputDir(dir); err != nil { return nil, err }
+					tools, err := mergerTools(ctx)
+					if err != nil { return nil, err }
+					path := filepath.Join(dir, target)
+					if err = muxMerger(ctx, tools, chosen, chap, path); err != nil { return nil, err }
+					return func() { status.SetText("Completed: " + path) }, nil
+				})
+			}, g.window).Show()
 	})
 	mux.Importance = widget.HighImportance
 	clear := widget.NewButton("Clear streams", func() {
@@ -347,8 +499,8 @@ func (g *linuxGUI) buildAdvancedMerger() fyne.CanvasObject {
 		list.Refresh()
 		status.SetText("Choose files to add streams.")
 	})
-	controls = []fyne.Disableable{movies, drive, audio, subs, chapters, folder, demux, mux, clear, chapter, output, name}
+	controls = []fyne.Disableable{movies, bluRay, drive, audio, subs, chapters, folder, demux, mux, clear, editMetadata, chapter, output, name}
 	baseControlCount = len(controls)
 	scroll := container.NewVScroll(list)
-	return container.NewBorder(container.NewVBox(container.NewGridWithColumns(2, movies, drive, audio, subs), widget.NewLabel("Select Streams — choose one chapter set, or use the chapter override below")), container.NewVBox(clear, container.NewBorder(nil, nil, nil, chapters, chapter), container.NewBorder(nil, nil, nil, folder, output), container.NewBorder(nil, nil, widget.NewLabel("Output filename"), nil, name), status, activity, container.NewHBox(demux, mux, cancelBtn)), nil, nil, scroll)
+	return container.NewBorder(container.NewVBox(container.NewGridWithColumns(2, movies, drive, audio, subs, bluRay, widget.NewLabel("Blu-ray: choose playlist / lossless LPCM→FLAC")), widget.NewLabel("Select Streams — choose one chapter set, or use the chapter override below")), container.NewVBox(container.NewHBox(clear, editMetadata), container.NewBorder(nil, nil, nil, chapters, chapter), container.NewBorder(nil, nil, nil, folder, output), container.NewBorder(nil, nil, widget.NewLabel("Output filename"), nil, name), status, activity, container.NewHBox(demux, mux, cancelBtn)), nil, nil, scroll)
 }

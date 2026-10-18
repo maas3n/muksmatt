@@ -45,5 +45,14 @@ func (g *linuxGUI) buildCLI() fyne.CanvasObject {
 			})
 		}()
 	})
-	return container.NewBorder(container.NewVBox(widget.NewLabel("muKsMaTT CLI — scan, metadata, remux, --batch; quote paths containing spaces."), command, container.NewHBox(run, stop)), nil, nil, nil, output)
+	examples := blurayCLIExamples()
+	presets := container.NewHBox(
+		widget.NewButton("Blu-ray Scan", func() { command.SetText(examples[0]) }),
+		widget.NewButton("Blu-ray Tracks", func() { command.SetText(examples[1]) }),
+		widget.NewButton("Blu-ray REMUX", func() { command.SetText(examples[2]) }),
+		widget.NewButton("Blu-ray DEMUX", func() { command.SetText(examples[3]) }),
+	)
+	help := widget.NewLabel("DVD and Blu-ray CLI — choose an example, replace SOURCE/OUTPUT_DIR, then Run. Scan first; explicitly select the correct Blu-ray playlist (e.g. 00800). Use --help for all options.")
+	help.Wrapping = fyne.TextWrapWord
+	return container.NewBorder(container.NewVBox(help, presets, command, container.NewHBox(run, stop)), nil, nil, nil, output)
 }
