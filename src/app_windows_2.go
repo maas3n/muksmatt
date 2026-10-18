@@ -92,6 +92,9 @@ func startAsync(label string, fn func(context.Context) error) {
 		app.cancelMu.Unlock()
 		app.busy.Store(false)
 		setBusyUI(false)
+		// REMUX/DEMUX Blu-ray playlist selection must run on the UI thread,
+		// after scan completion releases the busy controls.
+		postRemuxBluRayPlaylistChooserIfPending()
 	}()
 }
 func (a *application) cancelCurrent() {
@@ -124,6 +127,9 @@ func setBusyUI(busy bool) {
 }
 
 func scanSelectStreams(ctx context.Context) error {
+	if windowsBlurayMode() {
+		return scanWindowsRemuxBluRay(ctx)
+	}
 	// If this source/title has already been scanned (for example after the user
 	// changes the title dropdown), reuse that selection and reopen the stream
 	// chooser. Otherwise scan first, choose the longest title, then immediately
